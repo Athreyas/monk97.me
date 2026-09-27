@@ -1,0 +1,19 @@
+[Unit]
+Description=labpush — publishes sanitized lab health to lab.monk97.me
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=labpush
+EnvironmentFile=/etc/labpush/env
+ExecStart=/usr/bin/python3 /opt/labpush/labpush.py
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/labpush
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

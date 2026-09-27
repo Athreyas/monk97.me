@@ -1,0 +1,41 @@
+{
+  "_comment": "Uptime Kuma monitor name -> what the public page shows. Anything not listed here is NOT published. Labels are constants; never derived from the monitor name.",
+  "window_days": 90,
+  "categories": [
+    { "id": "virtualisation", "label": "Virtualisation" },
+    { "id": "network",        "label": "Network & DNS" },
+    { "id": "compute",        "label": "Compute & AI" },
+    { "id": "storage",        "label": "Storage & Backup" },
+    { "id": "observability",  "label": "Observability" },
+    { "id": "media",          "label": "Media & Home" },
+    { "id": "access",         "label": "Remote Access" }
+  ],
+  "monitors": {
+    "pve":              { "category": "virtualisation", "label": "Hypervisor" },
+    "guest-fleet":      { "category": "virtualisation", "label": "Guest fleet" },
+    "pbs":              { "category": "virtualisation", "label": "Backup server" },
+    "backup-freshness": { "category": "virtualisation", "label": "Backup freshness" },
+    "npm":              { "category": "network", "label": "Reverse proxy" },
+    "adguard":          { "category": "network", "label": "DNS filtering" },
+    "tailscale":        { "category": "network", "label": "Mesh VPN" },
+    "tls":              { "category": "network", "label": "TLS certificates" },
+    "gpu-workbench":    { "category": "compute", "label": "GPU node" },
+    "ollama":           { "category": "compute", "label": "LLM inference" },
+    "open-webui":       { "category": "compute", "label": "Chat interface" },
+    "jupyter":          { "category": "compute", "label": "Notebook environment" },
+    "nas":              { "category": "storage", "label": "Network storage" },
+    "nfs":              { "category": "storage", "label": "NFS export" },
+    "backup-retention": { "category": "storage", "label": "Backup retention" },
+    "kuma":             { "category": "observability", "label": "Uptime monitoring" },
+    "netdata":          { "category": "observability", "label": "Metrics" },
+    "dozzle":           { "category": "observability", "label": "Log aggregation" },
+    "jellyfin":         { "category": "media", "label": "Media server" },
+    "homebridge":       { "category": "media", "label": "Home automation bridge" },
+    "browser":          { "category": "access", "label": "Isolated browser" },
+    "omarchy":          { "category": "access", "label": "Remote desktop" },
+    "tools":            { "category": "access", "label": "Tools dashboard" },
+    "labdocs":          { "category": "access", "label": "Documentation" }
+  },
+  "nodes": 12,
+  "gpus": 1
+}

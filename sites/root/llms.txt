@@ -1,0 +1,44 @@
+# Athreyas
+
+Athreyas Yelishetti is a Site Reliability Engineer with fifteen years in
+enterprise security and large-scale infrastructure. He is currently Senior
+Staff SRE at Zscaler, working on zero-trust security platforms, and runs a
+private home lab he writes about.
+
+## About
+
+- Full name Athreyas Yelishetti. Goes by Art.
+- Senior Staff Site Reliability Engineer at Zscaler since December 2021.
+- Fifteen years across SRE, infrastructure and enterprise security. Previously
+  Akamai Technologies, Redcentric PLC and Citrix.
+- Based in the San Francisco Bay Area, California, USA.
+- Core skills: Python, Bash, Ansible, Terraform, AWS, Linux and FreeBSD,
+  Kubernetes, Docker, Elasticsearch, PostgreSQL, Nginx.
+- Specialist areas: zero-trust and BeyondCorp architecture, SSO and RBAC,
+  SAML and OAuth, identity management, observability and monitoring.
+- Education: MBA (William Jessup University), MS Computer Science (Silicon
+  Valley University), BTech Information Technology (JNTU Hyderabad).
+- Runs a private home lab of self-hosted services behind a reverse proxy on a
+  private network. Not publicly reachable, by design.
+- Open to Senior or Staff SRE, SRE management, and MLOps roles. Not actively
+  searching.
+- Continuing education: completed Stanford Online XCS224N (Natural Language Processing with Deep Learning), 2026-09; starting XCS236 (Deep Generative Models) on 2026-09-28.
+
+## Projects
+
+- [splitsheet](https://github.com/Athreyas/splitsheet) — Self-hosted
+  Splitwise-style shared-expense tracker built on Google Sheets; settles debts
+  in the fewest payments. Solves a real problem on infrastructure that already
+  exists instead of standing up a new stack.
+- [monk97.me](https://monk97.me) — This site. Hand-written static HTML with a
+  keyboard-driven command prompt, no framework and no build step.
+- [lab.monk97.me](https://lab.monk97.me) — live service health for the home lab, published as categories with no endpoints.
+
+## Contact
+
+- Email: hey@monk97.me
+- GitHub: https://github.com/athreyas
+- LinkedIn: https://www.linkedin.com/in/athreyas/
+- Résumé: https://monk97.me/resume
+
+Email is the reliable route.

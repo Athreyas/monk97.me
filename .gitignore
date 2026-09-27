@@ -1,0 +1,9 @@
+.DS_Store
+node_modules/
+.wrangler/
+.dev.vars
+
+# the private half lives in its own repo (Athreyas/monk97-internal) - if a
+# working copy is ever dropped in here, it must not be committed
+internal/
+docs/

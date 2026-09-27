@@ -1,0 +1,11 @@
+# Cloudflare Pages project for lab.monk97.me. Lives in deploy/lab (wrangler reads ./wrangler.toml from the cwd) so the
+# deploy never uploads it as a static file. Deploy with:
+#   (cd deploy/lab && npx wrangler pages deploy --branch=production --commit-dirty=true)
+name = "monk97-lab"
+pages_build_output_dir = "../../sites/lab"
+compatibility_date = "2026-09-01"
+
+# the collector's pushes land here; the page reads the latest one
+[[kv_namespaces]]
+binding = "LAB_STATUS"
+id = "124e65eab63c4a42a89e4eb980f3d900"
