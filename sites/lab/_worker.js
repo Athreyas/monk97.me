@@ -9,6 +9,7 @@
  * publish one even if the collector is misconfigured.
  */
 const LEAK = /\b(?:\d{1,3}\.){3}\d{1,3}\b|\.lab\.monk97\.me|\.lab\b|https?:\/\/|:\d{2,5}\b|\.local\b|\.ts\.net\b/i;
+const ISO8601 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const MAX_BYTES = 64 * 1024;
 
 const json = (body, status = 200, extra = {}) =>
@@ -54,13 +55,23 @@ export default {
       try { doc = JSON.parse(text); } catch { return json({ error: 'not json' }, 400); }
       if (doc.v !== 1 || !doc.summary || !Array.isArray(doc.categories) || !doc.generated_at)
         return json({ error: 'shape' }, 422);
+      // generated_at is exempted from the leak walk below, so it has to be
+      // proved a timestamp here rather than trusted
+      if (typeof doc.generated_at !== 'string' || !ISO8601.test(doc.generated_at))
+        return json({ error: 'generated_at must be an ISO 8601 UTC timestamp' }, 422);
       if (doc.fixture) return json({ error: 'fixture flag not allowed on a real push' }, 422);
-      // walk every string in the document; refuse the whole push on the first address-like value
-      const stack = [doc];
+      // Walk every string in the document; refuse the whole push on the first
+      // address-like value. `generated_at` is skipped by key: the port rule
+      // (:\d{2,5}) cannot tell a port from the time of day, so an honest
+      // timestamp like 2026-09-27T08:08:24Z would refuse every real push. It
+      // is validated as ISO 8601 above instead, which is stricter than the
+      // leak rule, not looser.
+      const stack = [['', doc]];
       while (stack.length) {
-        const v = stack.pop();
-        if (typeof v === 'string') { if (LEAK.test(v)) return json({ error: 'refused: value looks addressable' }, 422); }
-        else if (v && typeof v === 'object') for (const k in v) stack.push(v[k]);
+        const [key, v] = stack.pop();
+        if (key === 'generated_at') continue;
+        if (typeof v === 'string') { if (LEAK.test(v)) return json({ error: 'refused: value looks addressable', at: key }, 422); }
+        else if (v && typeof v === 'object') for (const k in v) stack.push([k, v[k]]);
       }
       await env.LAB_STATUS.put('latest', text, { metadata: { at: doc.generated_at } });
       return json({ ok: true, at: doc.generated_at });

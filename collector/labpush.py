@@ -293,13 +293,15 @@ def build(monitors, hist, pmap, now):
     cats = {c['id']: {'id': c['id'], 'label': c['label'], 'services': [], 'beats': None} for c in pmap['categories']}
     unmapped = []
     for name, m in monitors.items():
-        spec = pmap['monitors'].get(name)
-        if not spec: unmapped.append(name); continue          # fail closed
+        # `pub`, not `spec` — spec() is the host-hardware collector and a local
+        # of that name shadows it, breaking the payload two lines from here
+        pub = pmap['monitors'].get(name)
+        if not pub: unmapped.append(name); continue           # fail closed
         b = beats_for(hist, name, today, window)
         known = [x for x in b if x is not None]
         uptime = round(100.0 * sum(known) / len(known), 2) if known else 100.0
-        cats[spec['category']]['services'].append({
-            'label': spec['label'], 'state': 'up' if m['up'] else ('degraded' if m['pending'] else 'down'),
+        cats[pub['category']]['services'].append({
+            'label': pub['label'], 'state': 'up' if m['up'] else ('degraded' if m['pending'] else 'down'),
             'uptime': uptime, 'beats': b})
     out_cats = []
     for c in cats.values():
@@ -340,8 +342,14 @@ def fingerprint(doc):
 def push(doc):
     with open(CFG['TOKEN_FILE']) as f: token = f.read().strip()
     body = json.dumps(doc, separators=(',', ':')).encode()
+    # Cloudflare's integrity check rejects the stdlib's default
+    # "Python-urllib/3.x" signature with 403 error code 1010, so say who we
+    # actually are. The bearer token is what authenticates; this is identity.
     req = urllib.request.Request(CFG['INGEST_URL'], data=body, method='POST',
-                                 headers={'authorization': 'Bearer ' + token, 'content-type': 'application/json'})
+                                 headers={'authorization': 'Bearer ' + token,
+                                          'content-type': 'application/json',
+                                          'user-agent': 'labpush/1.0 (+https://lab.monk97.me)',
+                                          'accept': 'application/json'})
     with urllib.request.urlopen(req, timeout=15) as r: return r.status, r.read().decode()
 
 def cycle(state, pmap, do_push=True, do_print=False):

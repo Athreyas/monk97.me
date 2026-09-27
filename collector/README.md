@@ -20,7 +20,7 @@ map is silently not published — that is the point.
     cat > /etc/labpush/env <<'ENV'
     KUMA_URL=http://<kuma-host>:3001
     KUMA_SLUG=lab
-    INGEST_URL=https://lab.monk97.me/api/ingest
+    INGEST_URL=https://monk97-lab.pages.dev/api/ingest
     TOKEN_FILE=/etc/labpush/token
     STATE_DIR=/var/lib/labpush
     ENV
@@ -28,6 +28,12 @@ map is silently not published — that is the point.
     cp labpush.service /etc/systemd/system/
     systemctl daemon-reload && systemctl enable --now labpush
     journalctl -fu labpush
+
+**Use the `pages.dev` URL, not the custom domain.** The custom domain may
+resolve to something else inside the network (split-horizon DNS is the point
+of a lab), in which case the push lands on an internal reverse proxy and
+comes back 404 from a server that has never heard of `/api/ingest`. The
+`pages.dev` hostname is only ever the edge.
 
 Check the payload before trusting it: `sudo -u labpush env $(cat /etc/labpush/env) python3 /opt/labpush/labpush.py --print`.
 
