@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
 <script src="/assets/theme.js?v=390ff9fc"></script>
-<link rel="stylesheet" href="/assets/lab.css?v=f736b0a1">
+<link rel="stylesheet" href="/assets/lab.css?v=1243b795">
 </head>
 
 <body>
@@ -60,18 +60,19 @@
     </span>
   </div>
 
-  <div class="vitals" data-vitals></div>
+  <div class="host spec" data-spec hidden id="spec" data-toc="SPEC"></div>
 
-  <section class="inc" data-inc hidden>
-    <h2 class="sec">INCIDENTS · LAST 90 DAYS</h2>
-    <div data-inc-list></div>
+  <div class="host" data-host hidden id="vitals" data-toc="VITALS"></div>
+
+  <div class="vitals" data-vitals id="overview" data-toc="OVERVIEW"></div>
+
+  <section class="cats" data-cats id="services" data-toc="SERVICE HEALTH">
+    <p class="skel">loading service health…</p>
   </section>
 
-  <div class="host" data-host hidden></div>
-  <div class="host spec" data-spec hidden></div>
-
-  <section class="cats" data-cats>
-    <p class="skel">loading service health…</p>
+  <section class="inc" data-inc hidden id="incidents" data-toc="INCIDENTS">
+    <h2 class="sec">INCIDENTS · LAST 90 DAYS</h2>
+    <div data-inc-list></div>
   </section>
 
   <p class="body--soft foot-note">
@@ -101,6 +102,7 @@
 <script src="/assets/status.js?v=05d4ee1a" defer></script>
 <script src="/assets/sealed.js?v=495fc7c1" defer></script>
 <script src="/assets/lab.js?v=89425c37" defer></script>
+<script src="/assets/toc.js?v=2fffd5f0" defer></script>
 <script src="/assets/site.js?v=478a394b" defer></script>
 </body>
 </html>

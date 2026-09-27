@@ -5,7 +5,7 @@
 # hashes). With --check it only verifies and exits non-zero on drift.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-SHARED=(site.js theme.js)
+SHARED=(site.js theme.js toc.js)
 rc=0
 for f in "${SHARED[@]}"; do
   src="sites/root/assets/$f"; dst="sites/lab/assets/$f"

@@ -852,3 +852,50 @@ kbd {
 }
 .edu__where a:hover, .edu__where a:focus-visible { color: var(--accent); border-bottom-color: var(--accent); }
 .edu__note { color: var(--ink-faint); }
+
+/* ── page navigator ──────────────────────────────────────────── */
+/* A column of ticks on the right edge, one per section, the current one lit.
+   Hovering reveals the labels. Orientation first, navigation second: on a
+   long page the lit tick answers "where am I" with no interaction at all.
+   Injected by toc.js from [data-toc] sections. */
+
+.toc {
+  position: fixed; right: 18px; top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  /* padding on the left is the hover target - the ticks alone are too thin
+     to aim at, and reaching them should not require precision */
+  padding: 12px 4px 12px 26px;
+}
+.toc__list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
+}
+.toc__link {
+  display: flex; align-items: center; justify-content: flex-end; gap: 11px;
+  padding: 6px 0; text-decoration: none; border-bottom: 0;
+}
+.toc__tick {
+  display: block; flex: none; width: 15px; height: 1.5px;
+  background: var(--ink-faint); opacity: 0.5;
+  transition: width 220ms var(--ease), opacity 220ms var(--ease), background 220ms var(--ease);
+}
+.toc__label {
+  font-size: 9px; letter-spacing: 0.15em; line-height: 1;
+  color: var(--ink-soft); white-space: nowrap;
+  opacity: 0; transform: translateX(4px);
+  transition: opacity 180ms var(--ease), transform 180ms var(--ease);
+}
+.toc:hover .toc__label,
+.toc:focus-within .toc__label { opacity: 1; transform: none; }
+
+.toc__link:hover .toc__tick { opacity: 1; background: var(--ink); }
+.toc__link:focus-visible .toc__tick { opacity: 1; background: var(--accent, var(--ink)); }
+.toc__link[aria-current="true"] .toc__tick { width: 24px; opacity: 1; background: var(--ink); }
+.toc__link[aria-current="true"] .toc__label { color: var(--ink); }
+
+/* below this the column would sit on top of the text column */
+@media (max-width: 1100px) { .toc { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .toc__tick, .toc__label { transition: none; }
+}
