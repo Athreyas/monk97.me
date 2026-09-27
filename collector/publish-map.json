@@ -52,17 +52,9 @@
       "category": "network",
       "label": "DNS filtering"
     },
-    "tailscale": {
-      "category": "network",
-      "label": "Mesh VPN"
-    },
     "tls": {
       "category": "network",
       "label": "TLS certificates"
-    },
-    "gpu-workbench": {
-      "category": "compute",
-      "label": "GPU node"
     },
     "ollama": {
       "category": "compute",
