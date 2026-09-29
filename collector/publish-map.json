@@ -112,6 +112,10 @@
       "category": "access",
       "label": "Remote desktop"
     },
+    "authentik": {
+      "category": "access",
+      "label": "Identity provider"
+    },
     "labdocs": {
       "category": "access",
       "label": "Documentation"
