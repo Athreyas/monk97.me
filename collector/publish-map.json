@@ -108,6 +108,10 @@
       "category": "access",
       "label": "Tools dashboard"
     },
+    "omarchy": {
+      "category": "access",
+      "label": "Remote desktop"
+    },
     "labdocs": {
       "category": "access",
       "label": "Documentation"
