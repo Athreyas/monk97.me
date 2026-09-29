@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
 <script src="/assets/theme.js?v=390ff9fc"></script>
-<link rel="stylesheet" href="/assets/lab.css?v=1243b795">
+<link rel="stylesheet" href="/assets/lab.css?v=72a49c69">
 </head>
 
 <body>
@@ -32,12 +32,13 @@
   </header>
 
   <div class="waiting" hidden>
-    <p class="waiting__line">waiting for the network to change its mind…</p>
+    <p class="waiting__line">the lab is not reachable from here.</p>
     <p class="waiting__note">
-      This hostname resolves somewhere else entirely once the tunnel is up.
-      DNS may still be holding the old answer for a minute.
+      Its doors only open on the private network. Connect Tailscale on this
+      machine and this page will notice and let you through.
     </p>
     <div class="waiting__acts">
+      <a class="waiting__ts" href="https://login.tailscale.com/" target="_blank" rel="noopener noreferrer">open tailscale ↗</a>
       <button type="button" class="waiting__retry">retry</button>
       <button type="button" class="waiting__dismiss">nevermind</button>
     </div>
@@ -100,8 +101,8 @@
 </div>
 
 <script src="/assets/status.js?v=05d4ee1a" defer></script>
-<script src="/assets/sealed.js?v=495fc7c1" defer></script>
-<script src="/assets/lab.js?v=89425c37" defer></script>
+<script src="/assets/sealed.js?v=675c133e" defer></script>
+<script src="/assets/lab.js?v=cd81cb22" defer></script>
 <script src="/assets/toc.js?v=2fffd5f0" defer></script>
 <script src="/assets/site.js?v=478a394b" defer></script>
 </body>

@@ -62,21 +62,50 @@
   };
 
   /* ── the waiting state ─────────────────────────────────────────── */
+  /* The sealed destination only resolves on the private network. So the
+   * question after unsealing is not "who are you" but "can this machine
+   * reach it". A no-cors fetch of its /ping answers that: an opaque
+   * response means yes, a network error means the tunnel is down. */
 
-  /* A timestamp, not a flag. A bare '1' can never expire, so it strands the
-   * page in a waiting state for the rest of the browser session with no way
-   * out. Storing when we left lets the state go stale on its own. */
-  var PENDING = 'monk97:lab:pending';
-  var PENDING_TTL = 3 * 60 * 1000;    /* after three minutes it means nothing */
+  var PENDING = 'monk97:lab:pending';      /* JSON {url, since} */
+  var PENDING_TTL = 3 * 60 * 1000;         /* stop watching after three minutes */
+  var POLL = 5000, PROBE_TIMEOUT = 4000;
+  var timer = null, watching = null;
 
-  var goWaiting = function () {
-    if (!state) return;
-    state.hidden = false;
-    try { sessionStorage.setItem(PENDING, String(Date.now())); } catch (e) {}
+  var probe = function (url) {
+    return new Promise(function (resolve) {
+      var done = false, ctl = window.AbortController ? new AbortController() : null;
+      var finish = function (ok) { if (!done) { done = true; clearTimeout(t); resolve(ok); } };
+      var t = setTimeout(function () { if (ctl) ctl.abort(); finish(false); }, PROBE_TIMEOUT);
+      try {
+        fetch(url + 'ping', { mode: 'no-cors', cache: 'no-store', signal: ctl ? ctl.signal : undefined })
+          .then(function () { finish(true); }, function () { finish(false); });
+      } catch (e) { finish(false); }
+    });
   };
+
+  var stop = function () { if (timer) { clearTimeout(timer); timer = null; } };
   var clearWaiting = function () {
+    stop(); watching = null;
     if (state) state.hidden = true;
     try { sessionStorage.removeItem(PENDING); } catch (e) {}
+  };
+  var go = function (url) { clearWaiting(); window.location.href = url; };
+
+  /* show the notice and keep asking until the tunnel comes up or we give up */
+  var watch = function (url, since) {
+    if (!state) return;
+    watching = url; state.hidden = false;
+    since = since || Date.now();
+    try { sessionStorage.setItem(PENDING, JSON.stringify({ url: url, since: since })); } catch (e) {}
+    var loop = function () {
+      probe(url).then(function (ok) {
+        if (ok) return go(url);
+        if (Date.now() - since > PENDING_TTL) { stop(); return; }   /* quiet; the buttons still work */
+        timer = setTimeout(loop, POLL);
+      });
+    };
+    stop(); timer = setTimeout(loop, POLL);
   };
 
   /* ── extras for the shared prompt ──────────────────────────────── */
@@ -112,9 +141,11 @@
     __fallback: function (word, api) {
       return unseal(word).then(function (url) {
         if (!url) return false;
-        api.print('authenticating…');
-        goWaiting();
-        setTimeout(function () { window.location.href = url; }, 500);
+        api.print('checking the way in…');
+        probe(url).then(function (ok) {
+          if (ok) { api.print('open. going in.'); setTimeout(function () { go(url); }, 300); }
+          else    { api.print('not reachable from here.'); watch(url); }
+        });
         return true;
       });
     },
@@ -127,26 +158,27 @@
   };
 
   /* ── coming back ───────────────────────────────────────────────── */
-  /* If you left for the login and returned, you are probably waiting for
-   * DNS to start answering with the internal address. Say so, and offer a
-   * cache-busting reload — that is the only lever a page has here. */
+  /* A reload while waiting resumes the watch, for as long as it is fresh. */
 
   try {
-    var since = parseInt(sessionStorage.getItem(PENDING), 10);
-    /* Show it once, then forget it. A plain reload should come back clean;
-     * only `retry` re-arms it, because that is the one case where you are
-     * knowingly still waiting. */
-    if (since && Date.now() - since < PENDING_TTL && state) state.hidden = false;
-    if (since) sessionStorage.removeItem(PENDING);
+    var saved = JSON.parse(sessionStorage.getItem(PENDING) || 'null');
+    if (saved && saved.url && Date.now() - saved.since < PENDING_TTL) {
+      watch(saved.url, saved.since);
+      probe(saved.url).then(function (ok) { if (ok) go(saved.url); });
+    } else if (saved) {
+      sessionStorage.removeItem(PENDING);
+    }
   } catch (e) {}
 
   var retry = $('.waiting__retry');
-  if (retry) {
-    retry.addEventListener('click', function () {
-      try { sessionStorage.setItem(PENDING, String(Date.now())); } catch (e) {}
-      location.replace(location.pathname + '?t=' + Date.now());
+  if (retry) retry.addEventListener('click', function () {
+    if (!watching) return;
+    retry.disabled = true;
+    probe(watching).then(function (ok) {
+      retry.disabled = false;
+      if (ok) go(watching); else watch(watching);
     });
-  }
+  });
   var dismiss = $('.waiting__dismiss');
   if (dismiss) dismiss.addEventListener('click', clearWaiting);
 })();

@@ -273,7 +273,9 @@ kbd {
 .waiting__note { color: var(--ink-faint); font-size: 12px; line-height: 1.7; margin-top: 10px; max-width: 52ch; }
 .waiting__acts { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
 
-.waiting__retry, .waiting__dismiss {
+.waiting__ts, .waiting__retry, .waiting__dismiss {
+  text-decoration: none;
+  display: inline-block;
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--ink-soft);
@@ -284,6 +286,7 @@ kbd {
   cursor: pointer;
   transition: color 180ms ease, border-color 180ms ease;
 }
+.waiting__ts:hover, .waiting__ts:focus-visible,
 .waiting__retry:hover, .waiting__retry:focus-visible,
 .waiting__dismiss:hover, .waiting__dismiss:focus-visible { color: var(--accent); border-color: var(--accent); }
 
