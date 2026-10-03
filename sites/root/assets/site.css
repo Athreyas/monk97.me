@@ -783,12 +783,12 @@ body.card h1 {
 body.card .body {
   margin-top: 26px;
   color: var(--ink-soft);
-  max-width: 52ch;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 body.card .body strong { color: var(--ink); font-weight: 500; }
+body.card .body p { text-wrap: pretty; }   /* fills the card; no narrower measure */
 
 /* ── the quiet links ────────────────────────────────────────────── */
 
