@@ -7,7 +7,7 @@ Live: **[monk97.me](https://monk97.me)** · **[lab.monk97.me](https://lab.monk97
 
 ## Layout
 
-    sites/root/      monk97.me — landing page, resume, llms.txt
+    sites/root/      monk97.me — landing page, résumé, selected work, projects
     sites/lab/       lab.monk97.me — status page + the Worker in front of it
     collector/       labpush — runs inside the network, pushes out
     scripts/         local preview, fixture generator, pre-deploy checks
