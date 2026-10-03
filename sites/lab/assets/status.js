@@ -64,14 +64,39 @@
     return h < 48 ? h + 'h ago' : Math.round(h / 24) + 'd ago';
   }
 
-  /* 90 daily buckets is too dense to read small, so pair them up — 45 ticks
-     of 2 days, each taking the worse of the two so an incident can never be
-     averaged away. */
-  function beatBar(beats, cls) {
+  /* How much of the window has actually been measured. A page that has been
+     collecting for a week must not draw ninety days of bar with eighty-three
+     of them blank, or caption a seven-day figure "90-DAY". The bar covers
+     the measured span (never fewer than MIN_SLOTS, so day one is not a
+     single fat block) and grows a tick a day until the window is full. */
+  var MIN_SLOTS = 14;
+  var span = { window: 90, measured: 90, slots: 90, since: null };
+  function setSpan(d) {
+    var w = d.window_days || 90, m = d.summary.measured_days;
+    if (!(m > 0) || m > w) m = w;                 /* older feeds carry no count */
+    span = { window: w, measured: m, slots: Math.min(w, Math.max(m, MIN_SLOTS)),
+             since: d.summary.since || null };
+  }
+  var MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  function sinceText() {            /* "2026-09-27" -> "27 SEP", no Date parsing */
+    var p = (span.since || '').split('-');
+    return p.length === 3 ? (+p[2]) + ' ' + MONTHS[(+p[1]) - 1] : '';
+  }
+  function barLabel() { return 'LAST ' + span.slots + ' DAYS'; }
+  function figureLabel() {
+    if (span.measured >= span.window) return span.window + '-DAY';
+    return sinceText() ? 'SINCE ' + sinceText() : span.measured + '-DAY';
+  }
+
+  /* One tick per day while that is legible; past 45 days pair them up, each
+     tick taking the worse of the two so an incident can never be averaged
+     away. */
+  function beatBar(all, cls) {
     var bar = el('div', 'beats' + (cls ? ' ' + cls : ''));
     bar.setAttribute('aria-hidden', 'true');
-    for (var i = 0; i < beats.length; i += 2) {
-      var a = beats[i], b = beats[i + 1];
+    var beats = all.slice(-span.slots), step = beats.length > 45 ? 2 : 1;
+    for (var i = 0; i < beats.length; i += step) {
+      var a = beats[i], b = step === 2 ? beats[i + 1] : a;
       var v = (a == null || b == null) ? (a == null ? b : a) : Math.min(a, b);
       var t = el('i', 'beat-t');
       t.setAttribute('data-b',
@@ -89,7 +114,7 @@
   function viewRows(box, d) {
     var head = el('div', 'rowsHead');
     head.appendChild(el('span', null, 'SERVICE HEALTH'));
-    head.appendChild(el('span', 'rowsHead__bar', 'LAST 90 DAYS'));
+    head.appendChild(el('span', 'rowsHead__bar', barLabel()));
     head.appendChild(el('span', 'rowsHead__pct', 'UPTIME'));
     box.appendChild(head);
 
@@ -145,7 +170,9 @@
 
     t.appendChild(el('div', 'term__foot',
       d.categories.length + ' categories, ' + d.summary.services +
-      ' services, ' + d.window_days + 'd window'));
+      ' services, ' + (span.measured < span.window
+        ? 'measured ' + span.measured + 'd' + (span.since ? ' since ' + span.since : '')
+        : d.window_days + 'd window')));
     box.appendChild(t);
   }
 
@@ -154,7 +181,7 @@
   function viewTable(box, d) {
     var tb = el('div', 'tbl');
     var h = el('div', 'tbl__row tbl__row--head');
-    ['SERVICE', 'CATEGORY', 'LAST 90 DAYS', 'UPTIME'].forEach(function (x, i) {
+    ['SERVICE', 'CATEGORY', barLabel(), 'UPTIME'].forEach(function (x, i) {
       h.appendChild(el('span', 'tbl__c tbl__c--' + i, x));
     });
     tb.appendChild(h);
@@ -233,7 +260,7 @@
     var box = $('[data-vitals]');
     box.textContent = '';
     [[sum.services, 'SERVICES'], [sum.nodes, 'NODES'],
-     [sum.uptime.toFixed(2) + '%', win + '-DAY'],
+     [sum.uptime.toFixed(2) + '%', figureLabel()],
      [sum.gpus, sum.gpus === 1 ? 'GPU' : 'GPUS']].forEach(function (v) {
       var d = el('div', 'vital');
       d.appendChild(el('div', 'vital__n', String(v[0])));
@@ -322,6 +349,7 @@
     lastAt = new Date(d.generated_at);
     lastState = d.summary.state;
     isFixture = d.fixture === true;
+    setSpan(d);
     vitals(d.summary, d.window_days);
     hostStats(d.host);
     hostSpec(d.spec);

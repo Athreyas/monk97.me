@@ -83,6 +83,8 @@ doc = {
         "nodes": 12,
         "gpus": 1,
         "uptime": round(sum(c["uptime"] for c in cats) / len(cats), 2),
+        "measured_days": WINDOW,
+        "since": (TODAY - dt.timedelta(days=WINDOW - 1)).isoformat(),
         "streak_days": 5,
         "mttr_min": 312,
     },

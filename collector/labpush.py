@@ -55,7 +55,8 @@ def read_kuma():
             last = beats[-1]['status'] if beats else None
             up24 = hb.get('uptimeList', {}).get(f"{m['id']}_24")
             day_ok = (sum(1 for b in beats if b.get('status') == 1) / len(beats)) if beats else None
-            monitors[m['name']] = {'up': last == 1, 'pending': last in (2, 3), 'up24': up24, 'day': day_ok}
+            monitors[m['name']] = {'up': last == 1, 'pending': last in (2, 3), 'maint': last == 3,
+                                   'up24': up24, 'day': day_ok}
     return monitors
 
 # ── host vitals ───────────────────────────────────────────────────────────
@@ -272,24 +273,49 @@ def save_hist(h):
     with open(tmp, 'w') as f: json.dump(h, f)
     os.replace(tmp, hist_path())
 
-def update_hist(h, monitors, today):
+# A day is {"u": samples that were up, "n": samples taken}: one sample per
+# monitor per poll. Uptime is then a count - u/n for a day, sum(u)/sum(n) for
+# any span - rather than a reading. The first version stored the *lowest*
+# rolling figure seen that day, which made a three-minute blip and a
+# twenty-hour outage indistinguishable, and was not uptime at all.
+
+def _cell(v, minutes=1440):
+    """A history cell as (up, samples). Cells written before the change are a
+    bare ratio; give them the weight of the minutes they covered."""
+    if isinstance(v, dict): return int(v.get('u', 0)), int(v.get('n', 0))
+    minutes = max(1, int(minutes))
+    return int(round(float(v) * minutes)), minutes
+
+def update_hist(h, monitors, today, minutes_today=1440):
     for name, m in monitors.items():
-        v = 0.0 if not m['up'] and not m['pending'] else (m['day'] if m['day'] is not None else 1.0)
+        # up, or in a declared maintenance window. Pending is Kuma retrying
+        # before it calls a failure - not yet down, but not evidence of up.
+        ok = 1 if (m['up'] or m.get('maint')) else 0
         d = h.setdefault(name, {})
-        d[today] = min(d.get(today, 1.0), round(v, 3))
+        u, n = _cell(d[today], minutes_today) if today in d else (0, 0)
+        d[today] = {'u': u + ok, 'n': n + 1}
     cutoff = (dt.date.fromisoformat(today) - dt.timedelta(days=120)).isoformat()
     for d in h.values():
         for k in [k for k in d if k < cutoff]: del d[k]
 
-def beats_for(h, name, today, window):
-    d = h.get(name, {})
-    return [d.get((dt.date.fromisoformat(today) - dt.timedelta(days=window - 1 - i)).isoformat()) for i in range(window)]
+def days_for(h, name, today, window):
+    """[(up, samples) | None] for each of the last `window` days, oldest first."""
+    d = h.get(name, {}); t = dt.date.fromisoformat(today)
+    out = []
+    for i in range(window):
+        k = (t - dt.timedelta(days=window - 1 - i)).isoformat()
+        out.append(_cell(d[k]) if k in d else None)
+    return out
+
+def ratio(u, n): return round(u / n, 4) if n else None
+def pct(u, n):   return round(100.0 * u / n, 2) if n else 100.0
 
 # ── assemble ──────────────────────────────────────────────────────────────
 
 def build(monitors, hist, pmap, now):
     today = now.date().isoformat(); window = pmap.get('window_days', 90)
-    update_hist(hist, {k: v for k, v in monitors.items() if k in pmap['monitors']}, today)
+    update_hist(hist, {k: v for k, v in monitors.items() if k in pmap['monitors']}, today,
+                now.hour * 60 + now.minute)
     cats = {c['id']: {'id': c['id'], 'label': c['label'], 'services': [], 'beats': None} for c in pmap['categories']}
     unmapped = []
     for name, m in monitors.items():
@@ -297,30 +323,42 @@ def build(monitors, hist, pmap, now):
         # of that name shadows it, breaking the payload two lines from here
         pub = pmap['monitors'].get(name)
         if not pub: unmapped.append(name); continue           # fail closed
-        b = beats_for(hist, name, today, window)
-        known = [x for x in b if x is not None]
-        uptime = round(100.0 * sum(known) / len(known), 2) if known else 100.0
+        days = days_for(hist, name, today, window)
+        u = sum(x[0] for x in days if x); n = sum(x[1] for x in days if x)
         cats[pub['category']]['services'].append({
             'label': pub['label'], 'state': 'up' if m['up'] else ('degraded' if m['pending'] else 'down'),
-            'uptime': uptime, 'beats': b})
+            'uptime': pct(u, n), 'beats': [ratio(*x) if x else None for x in days],
+            '_u': u, '_n': n, '_first': next((i for i, x in enumerate(days) if x), None)})
     out_cats = []
     for c in cats.values():
         if not c['services']: continue
         n = len(c['services'][0]['beats'])
         c['beats'] = [None if all(s['beats'][i] is None for s in c['services'])
                       else min(s['beats'][i] for s in c['services'] if s['beats'][i] is not None) for i in range(n)]
-        c['uptime'] = round(sum(s['uptime'] for s in c['services']) / len(c['services']), 2)
+        c['_u'] = sum(s['_u'] for s in c['services']); c['_n'] = sum(s['_n'] for s in c['services'])
+        c['uptime'] = pct(c['_u'], c['_n'])         # sample-weighted, not a mean of means
         states = {s['state'] for s in c['services']}
         c['state'] = 'operational' if states == {'up'} else ('outage' if states == {'down'} else 'degraded')
         out_cats.append(c)
     total = sum(len(c['services']) for c in out_cats)
     states = {c['state'] for c in out_cats}
+    # how long the numbers have actually been measured: a figure over seven
+    # days must not be captioned as one over ninety
+    firsts = [s['_first'] for c in out_cats for s in c['services'] if s['_first'] is not None]
+    measured = (window - min(firsts)) if firsts else 0
+    since = (now.date() - dt.timedelta(days=measured - 1)).isoformat() if measured else None
+    all_u = sum(c['_u'] for c in out_cats); all_n = sum(c['_n'] for c in out_cats)
+    for c in out_cats:
+        c.pop('_u', None); c.pop('_n', None)
+        for s in c['services']:
+            for k in ('_u', '_n', '_first'): s.pop(k, None)
     doc = {
         'v': 1, 'generated_at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'window_days': window,
         'summary': {
             'state': 'operational' if states <= {'operational'} else ('outage' if states == {'outage'} else 'degraded'),
             'services': total, 'nodes': pmap.get('nodes', 0), 'gpus': pmap.get('gpus', 0),
-            'uptime': round(sum(c['uptime'] for c in out_cats) / max(1, len(out_cats)), 2),
+            'uptime': pct(all_u, all_n),
+            'measured_days': measured, 'since': since,
         },
         'host': host() if os.path.exists('/proc/stat') else None,
         'spec': spec() if os.path.exists('/proc/stat') else [],
@@ -357,7 +395,7 @@ def cycle(state, pmap, do_push=True, do_print=False):
     monitors = read_kuma()
     hist = load_hist()
     doc, unmapped = build(monitors, hist, pmap, now)
-    save_hist(hist)
+    if not do_print: save_hist(hist)
     if unmapped and state.get('warned') != sorted(unmapped):
         log('not published (unmapped in publish-map.json):', ', '.join(sorted(unmapped))); state['warned'] = sorted(unmapped)
     if do_print: print(json.dumps(doc, indent=1)); return
