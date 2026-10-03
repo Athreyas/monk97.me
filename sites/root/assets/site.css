@@ -898,8 +898,9 @@ kbd {
 }
 
 /* ── case studies (/work, /work/*) ───────────────────────────────── */
-/* Long-form prose on the doc chassis. Same measure and rhythm as the
-   résumé's bullets so the two read as one document family. */
+/* Long-form prose on the doc chassis. Text sets to the full document column,
+   exactly as the résumé's bullets do - no narrower measure of its own, or it
+   stops short of the rules and boxes around it. */
 
 .cs p {
   color: var(--ink-soft); font-size: 13px; line-height: 1.75;
