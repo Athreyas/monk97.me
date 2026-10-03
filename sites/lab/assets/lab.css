@@ -152,8 +152,8 @@ h1 {
 .body {
   margin-top: 26px;
   color: var(--ink-soft);
-  max-width: 52ch;
-  display: flex;
+  display: flex;                 /* no narrower measure: the intro fills the
+                                    same column as the status bar and boxes */
   flex-direction: column;
   gap: 16px;
 }
@@ -670,6 +670,8 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .toc__tick, .toc__label { transition: none; }
 }
+
+.body p { text-wrap: pretty; }
 
 /* the intro's link to the write-up */
 .body__link { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--line); }
