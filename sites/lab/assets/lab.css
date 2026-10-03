@@ -670,3 +670,7 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .toc__tick, .toc__label { transition: none; }
 }
+
+/* the intro's link to the write-up */
+.body__link { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--line); }
+.body__link:hover, .body__link:focus-visible { border-bottom-color: var(--accent); }

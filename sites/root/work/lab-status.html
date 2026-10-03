@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Publishing lab health without publishing the lab — Athreyas</title>
+<meta name="description" content="Case study: a public status page for a private home lab. A collector inside the network pushes a sanitised summary to the Cloudflare edge; labels are an allowlist and anything address-shaped is refused twice.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/work/lab-status">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=7671583f">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/work/">work</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">lab-status</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">Publishing lab health without publishing the lab.</h1>
+  <p class="doc__role">Case study · a public status page for a private network</p>
+  <div class="cs__meta">
+    <span>2026-09</span>
+    <a href="https://lab.monk97.me" target="_blank" rel="noopener noreferrer">live page ↗</a>
+    <a href="https://github.com/Athreyas/monk97.me" target="_blank" rel="noopener noreferrer">source ↗</a>
+  </div>
+
+  <!-- Every claim below is traceable to the public repository — its README,
+       sites/lab/_worker.js, collector/, and the commit history. Anything the
+       repo cannot support is left out rather than asserted. -->
+
+  <h2 class="doc__h" id="problem" data-toc>PROBLEM</h2>
+  <p>
+    I run a small home lab: one hypervisor, a rack of self-hosted services,
+    a reverse proxy in front of them, a private network holding it together.
+    I wanted a public page that shows — honestly, from measurement — whether
+    that lab is healthy. A status page for something that is not supposed to
+    be reachable.
+  </p>
+  <p>
+    The tension is obvious. A status page is a list of what exists. For a
+    private network, the list <em>is</em> the sensitive part: hostnames,
+    ports, the shape of the fleet. The page had to say "the reverse proxy is
+    up" without ever being able to say where the reverse proxy is.
+  </p>
+
+  <h2 class="doc__h" id="constraints" data-toc>CONSTRAINTS</h2>
+  <ul>
+    <li><strong>Nothing addressable leaves the network.</strong> No hostname, IP, port, URL, or internal naming convention — not on the page, not in the feed behind it, not in the public repository.</li>
+    <li><strong>No inbound exposure.</strong> The lab does not accept connections from the internet, and a status page was not a good enough reason to start.</li>
+    <li><strong>Static hosting.</strong> The site is hand-written HTML on Cloudflare Pages with no framework and no build step. The status page had to fit that, not replace it.</li>
+    <li><strong>Honest when broken.</strong> A status page whose backend has died must not keep serving a stale "all green". Silence has to look like silence.</li>
+    <li><strong>Maintainable by one person.</strong> Adding a service should be one edit, not three that can drift.</li>
+  </ul>
+
+  <h2 class="doc__h" id="options" data-toc>OPTIONS &amp; TRADEOFFS</h2>
+  <p><strong>Expose an internal status service.</strong> Tunnel or proxy an existing monitoring UI out to the internet. Fastest to build, and exactly the thing the constraints forbid: it opens an inbound path, and every such tool renders the targets it monitors. Rejected.</p>
+  <p><strong>Fetch from the browser.</strong> Let the page call into the lab directly. This does not work — the lab is not reachable — and the attempt would put internal addresses in public JavaScript. Rejected.</p>
+  <p><strong>Push from inside, read at the edge.</strong> A collector on the private network builds a sanitised summary and pushes it <em>out</em> to a small Worker at the Cloudflare edge, which stores it. The page reads whatever landed last. The only network path is outbound from the lab, over HTTPS, to a bearer-token endpoint. Chosen.</p>
+  <p><strong>Publish endpoints, or publish categories?</strong> A conventional page lists services by name and lets you click through. This one publishes <em>categories</em> — "Network &amp; DNS", "Compute &amp; AI" — with curated labels inside them, and nothing is a link. Less useful to a visitor than a real dashboard; that is the price of it being public at all.</p>
+  <p><strong>Blocklist or allowlist?</strong> Filtering out things that look sensitive is a losing game — the monitoring tool can be renamed carelessly at any time. Instead the public label for every service is a <em>constant</em> in an explicit map, never derived from the monitor's real name. A service not in the map is not published. Fail closed.</p>
+
+  <h2 class="doc__h" id="design" data-toc>DESIGN</h2>
+  <pre class="cs__fig" aria-label="Architecture: collector inside the network pushes to a Worker at the edge, which stores the summary in KV; the public page reads from the Worker and falls back to a shipped fixture">
+private network                     Cloudflare edge                  browser
+───────────────                     ───────────────                  ───────
+collector ──POST /api/ingest──►  Worker ──► KV           GET /api/status ──► page
+  · reads the monitoring tool      · bearer token                     │
+  · applies the label map          · shape + size check               └─ fixture,
+  · scrubs itself                  · refuses address-like values          if KV is empty</pre>
+  <p>
+    The <strong>collector</strong> is one stdlib-Python file. Every minute it reads the internal monitoring tool, rolls each monitor up through the label map, adds host vitals and a static hardware summary, and pushes — but only when something changed, or on a heartbeat so the timestamp stays honest. It scrubs its own output against the same address-shaped pattern the edge enforces, so a bad value drops one row instead of sinking the whole push.
+  </p>
+  <p>
+    The <strong>edge Worker</strong> is under a hundred lines. It accepts a push only with the right bearer token, checks the document's size and shape, and then walks every string in it. If any value looks like an IP, a port, a URL, or an internal hostname suffix, the entire push is refused. The page can therefore not publish an address even if the collector is misconfigured — the collector's scrub is hygiene; the edge's refusal is the guarantee.
+  </p>
+  <p>
+    The <strong>page</strong> is static. It fetches the latest push, renders it four ways (rows, terminal, table, cards), and if the feed is older than an hour shows "no contact from collector" rather than the last numbers. If nothing has ever been pushed it serves a shipped fixture, clearly labelled as sample data.
+  </p>
+  <p>
+    One <strong>private source file</strong> declares every service — its real target, its category, its public label. The public label map is <em>generated</em> from it, and so is the monitoring configuration. The three things that used to be able to disagree now cannot.
+  </p>
+
+  <h2 class="doc__h" id="validation" data-toc>VALIDATION</h2>
+  <ul>
+    <li>A headless smoke test drives each of the four renderers against the fixture and counts what they draw — a syntax check proves nothing about whether a view actually renders.</li>
+    <li>A CSS audit checks that every class used in the markup has a rule, after a layout was silently lost to a bad edit early on.</li>
+    <li>Asset URLs carry a content hash, because the CDN caches stylesheets for hours while HTML updates instantly — an unstamped deploy shows new markup against stale styles.</li>
+    <li>Shared scripts are copied between the two hosts by a script that can also just check for drift.</li>
+    <li>The refusal filter is exercised against real payloads, not only the fixture — which is how its worst bug was found.</li>
+  </ul>
+
+  <h2 class="doc__h" id="outcome" data-toc>OUTCOME</h2>
+  <p>
+    Live at <a href="https://lab.monk97.me" target="_blank" rel="noopener noreferrer">lab.monk97.me</a> since 2026-09-27, fed by the collector every minute, publishing twenty services across seven categories and nothing that resolves. The page, the Worker, and the collector are all in the public repository; the file that names the real targets is not, and the repository's history was started fresh so it never was.
+  </p>
+  <p>
+    Uptime is <strong>counted, not estimated</strong>: one sample per service per minute, a day is its up-samples over its samples, and the figure on the live page is that same sum across every day since measurement began — captioned with the start date rather than a window it has not yet filled. No number is quoted here because it would be stale by tomorrow; <a href="https://lab.monk97.me" target="_blank" rel="noopener noreferrer">the live one</a> is the measurement.
+  </p>
+
+  <h2 class="doc__h" id="lessons" data-toc>LESSONS</h2>
+  <p><strong>A backstop that has never fired on real data has never been tested.</strong> The first genuine push was refused by the edge: the address filter's port rule, <code>:\d{2,5}</code>, cannot tell a port from a time of day, and the push's own ISO-8601 timestamp tripped it. The fixture never went through the filter, so the bug was invisible for as long as the page served sample data. The fix was not to loosen the rule but to exempt that one field by key and validate it with something <em>stricter</em>. Fail-closed needs a named, reviewed exception path, and it is cheaper to design it on day one.</p>
+  <p><strong>A status page's number has to be a count.</strong> For its first week the page built uptime from the lowest rolling reading seen each day. That is not uptime: it showed 16% for a day with 21 minutes of downtime, and it could just as easily miss an outage that fell between readings. History is now a count of samples, and the caption says how long it has actually been counting.</p>
+  <p><strong>Inside and outside resolve differently, on purpose.</strong> The status page's hostname means something else inside the network. The collector's first pushes therefore never left the LAN — they landed on an internal proxy that had never heard of the ingest route. Pushing to the hosting provider's own hostname, which only ever resolves to the edge, sidesteps a DNS design that is otherwise correct.</p>
+  <p><strong>Three lists that can drift will drift.</strong> The monitoring configuration, the public label map, and the lab's launcher were three hand-maintained lists of the same services. Two are now generated from the third.</p>
+  <!-- An incident narrative from the lab's own history is parked: the raw
+       material is in the private notes, and nothing is published until the
+       details are confirmed. -->
+
+  <div class="doc__foot">
+    <a href="/work/">← selected work</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2fffd5f0" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>

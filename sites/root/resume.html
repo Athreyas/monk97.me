@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=698c6e9a">
+<link rel="stylesheet" href="/assets/site.css?v=7671583f">
 
 <script src="/assets/theme.js?v=390ff9fc"></script>
 </head>
@@ -37,17 +37,13 @@
   <h1 class="doc__name">Athreyas Yelishetti</h1>
   <p class="doc__role">Senior Staff Site Reliability Engineer · Zscaler · Bay Area, California</p>
 
-  <div class="status">
-    <div class="status__l"><span class="beat" aria-hidden="true"></span>ALL SYSTEMS OPERATIONAL</div>
-    <div class="status__r">CUMULATIVE UPTIME · 15Y</div>
-  </div>
-
-  <div class="vitals" id="overview" data-toc="OVERVIEW">
-    <div class="vital"><div class="vital__n">15</div><div class="vital__k">YEARS</div></div>
-    <div class="vital"><div class="vital__n">5</div><div class="vital__k">ORGS</div></div>
-    <div class="vital"><div class="vital__n">6</div><div class="vital__k">ROLES</div></div>
-    <div class="vital"><div class="vital__n">3</div><div class="vital__k">DEGREES</div></div>
-  </div>
+  <p class="doc__summary" id="summary" data-toc="SUMMARY">
+    Senior Staff SRE with 15 years in security and infrastructure, from
+    Zscaler's zero-trust platform to customer onboarding and production
+    delivery at Akamai. Moving toward solutions architecture and forward
+    deployment: understanding customer constraints, designing the system, and
+    owning it into production.
+  </p>
 
   <nav class="doc__contact" aria-label="Contact">
     <a href="mailto:hey@monk97.me" target="_blank" rel="noopener noreferrer">hey@monk97.me</a>
@@ -57,12 +53,26 @@
     <a data-link="linkedin" href="https://www.linkedin.com/in/athreyas/" target="_blank" rel="me noopener noreferrer">linkedin</a>
   </nav>
 
+  <!-- secondary to the introduction above: same stats, quieter -->
+  <div class="doc__meta">
+  <div class="status">
+    <div class="status__l"><span class="beat" aria-hidden="true"></span>ALL SYSTEMS OPERATIONAL</div>
+    <div class="status__r">EXPERIENCE · 15Y</div>
+  </div>
+  <div class="vitals" id="overview">
+    <div class="vital"><div class="vital__n">15</div><div class="vital__k">YEARS</div></div>
+    <div class="vital"><div class="vital__n">5</div><div class="vital__k">ORGS</div></div>
+    <div class="vital"><div class="vital__n">6</div><div class="vital__k">ROLES</div></div>
+    <div class="vital"><div class="vital__n">3</div><div class="vital__k">DEGREES</div></div>
+  </div>
+  </div>
+
   <!-- ── services ─────────────────────────────────────────────────
        Bar widths are proportional to real months served, scaled to the
        longest tenure. Do not hand-tune them away from the durations. -->
   <h2 class="doc__h" id="services" data-toc>SERVICES</h2>
 
-  <div class="svc">
+  <div class="svc svc--now">
     <div class="svc__top">
       <span class="svc__dot" aria-hidden="true"></span>
       <span class="svc__org">ZSCALER</span>
@@ -72,9 +82,9 @@
     <div class="svc__bar"><div class="svc__fill" style="width:100%"></div></div>
     <div class="svc__dur">4Y 9M · ACTIVE</div>
     <ul class="svc__body">
-      <li>Design and operate scalable systems for a globally expanding infrastructure.</li>
-      <li>Lead the build-out of customer-facing Linux and BSD systems infrastructure.</li>
-      <li>Build tooling in Python and Ansible that removes manual work from the team.</li>
+      <li>Provision and operate the inline zero-trust proxy fleet across <strong>100+ data centers</strong>, on Zscaler-owned Linux and BSD hardware.</li>
+      <li>Re-architected provisioning into a self-executing Python init package, cutting full-cluster setup from <strong>36–40 hours to under six</strong>.</li>
+      <li>Build and maintain Python and Ansible automation for remote provisioning and build delivery; add production capacity behind existing customer-facing virtual IPs.</li>
     </ul>
   </div>
 
@@ -88,9 +98,9 @@
     <div class="svc__bar"><div class="svc__fill" style="width:53%"></div></div>
     <div class="svc__dur">2Y 6M</div>
     <ul class="svc__body">
-      <li>Operated the AWS microservices behind Enterprise Application Access.</li>
-      <li>Provisioned with Terraform, configured with Ansible, observed with Elasticsearch.</li>
-      <li>Added SSO and RBAC across internal DevOps tooling and third-party cloud instances.</li>
+      <li>Unblocked stalled customer onboardings, working through application configuration until production.</li>
+      <li>Ran multi-region AWS infrastructure for Enterprise Application Access with Terraform, Ansible and Elasticsearch.</li>
+      <li>Structured data-path upgrades to avoid customer traffic interruptions, organized management-path rollouts, and added SSO/RBAC to internal tooling and cloud instances.</li>
     </ul>
   </div>
 
@@ -104,13 +114,14 @@
     <div class="svc__bar"><div class="svc__fill" style="width:51%"></div></div>
     <div class="svc__dur">2Y 5M</div>
     <ul class="svc__body">
-      <li>Subject-matter expert and final escalation point for Enterprise Application Access.</li>
-      <li>Took customer onboarding and proofs of concept through to production.</li>
-      <li>Fed customer requirements into release qualification and feature prioritisation.</li>
+      <li>Led <strong>25–30 customer onboardings</strong> through production and worked <strong>10+ proofs of concept</strong> end to end.</li>
+      <li>Supported <strong>60–80 customers</strong> after onboarding; <strong>10–15 asked for me</strong> on their calls.</li>
+      <li>Owned complex Enterprise Application Access escalations through closure, including legacy-app access, SSO with Okta/Ping, desktop clients and browser-based remote desktop.</li>
+      <li>Raised customer onboarding requirements that became product features in later releases.</li>
     </ul>
   </div>
 
-  <div class="svc svc--past">
+  <div class="svc svc--past svc--compact">
     <div class="svc__top">
       <span class="svc__dot" aria-hidden="true"></span>
       <span class="svc__org">REDCENTRIC PLC</span>
@@ -119,14 +130,10 @@
     <div class="svc__title">Senior Application Support Engineer</div>
     <div class="svc__bar"><div class="svc__fill" style="width:51%"></div></div>
     <div class="svc__dur">2Y 5M</div>
-    <ul class="svc__body">
-      <li>Supported enterprise applications handling financial transactions.</li>
-      <li>Built server monitoring with Nagios and automated the routine work around it.</li>
-      <li>Identified manual processes worth automating and documented them for the team.</li>
-    </ul>
+    <p class="svc__line">Supported client-hosted enterprise applications, traced transaction failures to root cause, and built Nagios monitoring and routine automation.</p>
   </div>
 
-  <div class="svc svc--past">
+  <div class="svc svc--past svc--compact">
     <div class="svc__top">
       <span class="svc__dot" aria-hidden="true"></span>
       <span class="svc__org">CITRIX R&amp;D SYSTEMS</span>
@@ -135,14 +142,10 @@
     <div class="svc__title">Support Engineer</div>
     <div class="svc__bar"><div class="svc__fill" style="width:46%"></div></div>
     <div class="svc__dur">2Y 2M</div>
-    <ul class="svc__body">
-      <li>Worked the identity-management lifecycle on IMAG and later XenMobile.</li>
-      <li>Built and shipped SSO connectors for web and SaaS apps via the Citrix App Store.</li>
-      <li>Configured Windows AD, certificate services and SAML 1.1 / 2.0.</li>
-    </ul>
+    <p class="svc__line">Developed, tested and published Citrix App Store SSO connectors; configured AD, certificate services and SAML for identity-management products.</p>
   </div>
 
-  <div class="svc svc--past">
+  <div class="svc svc--past svc--compact">
     <div class="svc__top">
       <span class="svc__dot" aria-hidden="true"></span>
       <span class="svc__org">SOFTCOM INC</span>
@@ -151,10 +154,7 @@
     <div class="svc__title">Operations &amp; Management Engineer</div>
     <div class="svc__bar"><div class="svc__fill" style="width:2%"></div></div>
     <div class="svc__dur">CONTRACT · US PATENT AND TRADEMARK OFFICE</div>
-    <ul class="svc__body">
-      <li>Maintained the Linux and Windows servers behind messaging, image conversion and translation services.</li>
-      <li>Automated routine server and backup operations.</li>
-    </ul>
+    <p class="svc__line">Maintained Linux/Windows servers for messaging, image conversion and translation; automated server and backup operations.</p>
   </div>
 
   <!-- ── the lab ──────────────────────────────────────────────── -->
@@ -167,11 +167,8 @@
       <span class="svc__when">ONGOING · PRIVATE</span>
     </div>
     <div class="svc__title">Self-hosted infrastructure</div>
-    <ul class="svc__body">
-      <li>Containers behind a reverse proxy, reachable only over a private network.</li>
-      <li>A place to evaluate what is hard to justify in production — new runtimes, networking models, deployment patterns.</li>
-      <li>Documented as I go — setup guides, failure post-mortems, and the occasional dead end.</li>
-    </ul>
+    <p class="svc__line">Self-hosted infrastructure for testing runtimes, networking and deployment patterns. Built a public status pipeline for the private network: push-only updates, allowlisted labels and fail-closed address filtering.</p>
+    <p class="svc__line"><a href="/work/lab-status">Lab status case study</a></p>
   </div>
 
   <!-- ── capabilities ─────────────────────────────────────────── -->
@@ -197,7 +194,7 @@
 
   <div class="edu">
     <div class="edu__when">2026-09 →</div>
-    <div><div class="edu__what">XCS236 · Deep Generative Models</div><div class="edu__where">Stanford Online · <span class="edu__note">starts 28 Sep 2026</span></div></div>
+    <div><div class="edu__what">XCS236 · Deep Generative Models</div><div class="edu__where">Stanford Online · <span class="edu__note">in progress · started 28 Sep 2026</span></div></div>
   </div>
   <div class="edu">
     <div class="edu__when">2026-09</div>

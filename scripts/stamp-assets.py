@@ -22,7 +22,7 @@ for site in SITES:
             return m.group(0)
         h = hashlib.sha256(f.read_bytes()).hexdigest()[:8]
         return f'{m.group("pre")}{m.group("path")}?v={h}{m.group("post")}'
-    for html in root.glob('*.html'):
+    for html in root.rglob('*.html'):    # nested pages too (work/*.html)
         before = html.read_text()
         after = REF.sub(stamp, before)
         if after != before:

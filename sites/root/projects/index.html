@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Projects — Athreyas</title>
+<meta name="description" content="Projects by Athreyas Yelishetti — things built, shipped and running, each with its source.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/projects/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=7671583f">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">projects</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">Projects.</h1>
+  <p class="doc__role">Things built, shipped and running. Each one links to its source.</p>
+
+  <!-- Only what is public and verifiable is listed. An entry is added when
+       there is something to link to, not before. -->
+
+  <h2 class="doc__h">RUNNING</h2>
+
+  <div class="svc">
+    <div class="svc__top">
+      <span class="svc__dot" aria-hidden="true"></span>
+      <span class="svc__org">LAB STATUS PIPELINE</span>
+      <span class="svc__when">2026 · LIVE</span>
+    </div>
+    <div class="svc__title"><a href="https://lab.monk97.me" target="_blank" rel="noopener noreferrer">lab.monk97.me</a></div>
+    <ul class="svc__body">
+      <li>A public, measured status page for a private home lab, with no hostname, IP or port in the page, the feed, or the repository.</li>
+      <li>A collector inside the network pushes a sanitised summary to a Worker at the Cloudflare edge; labels are an explicit allowlist, and anything shaped like an address is refused twice.</li>
+      <li>Uptime is counted — one sample per service per minute — and captioned with the date counting began.</li>
+      <li><a href="/work/lab-status">Case study</a> · <a href="https://github.com/Athreyas/monk97.me" target="_blank" rel="noopener noreferrer">source ↗</a></li>
+    </ul>
+  </div>
+
+  <div class="svc">
+    <div class="svc__top">
+      <span class="svc__dot" aria-hidden="true"></span>
+      <span class="svc__org">SPLITSHEET</span>
+      <span class="svc__when">2026 · MIT</span>
+    </div>
+    <div class="svc__title"><a href="https://github.com/Athreyas/splitsheet" target="_blank" rel="noopener noreferrer">Splitwise, but it's a Google Sheet</a></div>
+    <ul class="svc__body">
+      <li>A shared-expense tracker built in Google Sheets with Apps Script: equal, exact, percentage and share splits, recurring monthly expenses, and a single net balance per person.</li>
+      <li>One rule holds it together: the Expenses tab is the only source of truth. The ledger is rebuilt from it and every balance is a live formula, so one refresh recomputes the whole system and nothing can drift.</li>
+      <li>Suggests the smallest set of payments that settles everyone up.</li>
+      <li>Runs on infrastructure people already have, instead of a new stack to host. Built with Claude. <a href="https://github.com/Athreyas/splitsheet" target="_blank" rel="noopener noreferrer">source ↗</a></li>
+    </ul>
+  </div>
+
+  <div class="svc">
+    <div class="svc__top">
+      <span class="svc__dot" aria-hidden="true"></span>
+      <span class="svc__org">MONK97.ME</span>
+      <span class="svc__when">2026 · LIVE</span>
+    </div>
+    <div class="svc__title"><a href="/">This site</a></div>
+    <ul class="svc__body">
+      <li>Hand-written static HTML on Cloudflare Pages. No framework, no build step.</li>
+      <li>A keyboard-driven command prompt on every page (press <kbd>/</kbd>), a three-state theme, and a page navigator on the long ones.</li>
+      <li>Ships an <a href="/llms.txt">llms.txt</a> that is checked against the pages before every deploy, because agents read it as fact.</li>
+      <li><a href="https://github.com/Athreyas/monk97.me" target="_blank" rel="noopener noreferrer">source ↗</a></li>
+    </ul>
+  </div>
+
+  <div class="doc__foot">
+    <a href="/">← monk97.me</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>

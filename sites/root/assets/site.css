@@ -671,9 +671,6 @@ body.is-doc {
 .doc__foot a:hover { color: var(--accent); }
 
 @media (max-width: 560px) {
-  .vitals { grid-template-columns: repeat(2, 1fr); }
-  .vital:nth-child(3) { border-left: none; }
-  .vital:nth-child(n+3) { border-top: 1px solid var(--line); }
   .caps, .edu { grid-template-columns: 1fr; gap: 0; }
   .caps__v { padding-top: 0; border-top: none; }
   .svc__when { margin-left: 0; width: 100%; }
@@ -899,3 +896,89 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .toc__tick, .toc__label { transition: none; }
 }
+
+/* ── case studies (/work, /work/*) ───────────────────────────────── */
+/* Long-form prose on the doc chassis. Same measure and rhythm as the
+   résumé's bullets so the two read as one document family. */
+
+.cs p {
+  color: var(--ink-soft); font-size: 13px; line-height: 1.75;
+  margin: 0 0 14px; max-width: 64ch;
+}
+.cs p strong, .cs li strong { color: var(--ink); font-weight: 500; }
+.cs p em { font-style: italic; }
+.cs p code { font-size: 12px; color: var(--ink); }
+.cs ul {
+  list-style: none; margin: 0 0 16px; padding: 0;
+  display: flex; flex-direction: column; gap: 7px;
+  font-size: 12.5px; line-height: 1.7; color: var(--ink-soft); max-width: 64ch;
+}
+.cs li { padding-left: 16px; position: relative; }
+.cs li::before { content: '·'; position: absolute; left: 3px; color: var(--accent); }
+.cs a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--line); }
+.cs a:hover, .cs a:focus-visible { border-bottom-color: var(--accent); }
+.cs__meta {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px;
+  font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink-faint);
+}
+.cs__fig {
+  margin: 4px 0 18px; padding: 13px 16px;
+  border: 1px solid var(--line); border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 3%, var(--bg));
+  font-size: 10.5px; line-height: 1.6; color: var(--ink-soft);
+  overflow-x: auto; white-space: pre;
+}
+.svc__title a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
+.svc__title a:hover, .svc__title a:focus-visible { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* the résumé's target-specific summary */
+/* Set like the body copy beneath it - same colour, same column - so the
+   introduction reads as the first paragraph of the page, not a pull-quote.
+   Position carries the emphasis; it does not need a brighter ink as well. */
+.doc__summary {
+  color: var(--ink-soft); font-size: 13px; line-height: 1.7;
+  margin: 18px 0 0; text-wrap: pretty;
+}
+
+/* a placeholder awaiting a verified figure. Loud on purpose: nothing with
+   one of these on it is ready to publish. */
+.ask {
+  color: var(--accent);
+  border: 1px dashed var(--accent);
+  border-radius: 2px; padding: 0 5px;
+  font-size: 11px; letter-spacing: 0.03em; white-space: normal;
+}
+
+/* ── résumé hierarchy ────────────────────────────────────────────── */
+/* Three weights of role, so the eye lands in the right order: the current
+   one, the substantial prior ones, then earlier roles as a line each. And
+   the header's stats step back behind the introduction. */
+
+/* same badge, same counters - quieter, and after the summary */
+.doc__meta { margin-top: 24px; }
+.doc__meta .status { margin-top: 0; font-size: 10.5px; border-left-color: var(--line); }
+.doc__meta .status__l { color: var(--ink-soft); }
+.doc__meta .vitals { margin-top: 16px; gap: 0 clamp(20px, 5vw, 40px); }
+.doc__meta .vital__n { font-size: 15px; font-weight: 400; color: var(--ink-soft); }
+.doc__meta .vital__k { margin-top: 5px; }
+
+/* the current role: the strongest heading, not the longest text */
+.svc--now { padding-bottom: 26px; }
+.svc--now .svc__title { font-size: 17px; }
+
+/* earlier roles: metadata intact, one sentence, no competition */
+.svc--compact { padding: 15px 0; }
+.svc--compact .svc__title { font-size: 13.5px; margin-top: 6px; }
+.svc--compact .svc__bar { margin-top: 9px; }
+.svc__line {
+  color: var(--ink-soft); font-size: 12.5px; line-height: 1.7;
+  margin: 11px 0 0; text-wrap: pretty;      /* same column as the bullets */
+}
+.svc__line + .svc__line { margin-top: 6px; }
+.svc__line a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--line); }
+.svc__line a:hover, .svc__line a:focus-visible { border-bottom-color: var(--accent); }
+
+/* a metric is the thing to find while skimming. Kept on one line so a range
+   never breaks across two ("36-" / "40 hours"); the bullet around it wraps
+   normally. */
+.svc__body strong, .svc__line strong { color: var(--ink); font-weight: 500; white-space: nowrap; }

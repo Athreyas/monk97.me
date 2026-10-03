@@ -20,9 +20,12 @@ private home lab he writes about.
   Valley University), BTech Information Technology (JNTU Hyderabad).
 - Runs a private home lab of self-hosted services behind a reverse proxy on a
   private network. Not publicly reachable, by design.
-- Open to Senior or Staff SRE, SRE management, and MLOps roles. Not actively
-  searching.
-- Continuing education: completed Stanford Online XCS224N (Natural Language Processing with Deep Learning), 2026-09; starting XCS236 (Deep Generative Models) on 2026-09-28.
+- Building toward customer-facing infrastructure architecture and forward
+  deployment. Open to solutions architect and infrastructure-focused
+  forward-deployed engineer roles, particularly at security, cloud and
+  AI-infrastructure companies. MLOps and AI infrastructure are a study
+  direction, not claimed production experience. Actively searching.
+- Continuing education: completed Stanford Online XCS224N (Natural Language Processing with Deep Learning), 2026-09; XCS236 (Deep Generative Models) in progress since 2026-09-28.
 
 ## Projects
 
@@ -33,6 +36,16 @@ private home lab he writes about.
 - [monk97.me](https://monk97.me) — This site. Hand-written static HTML with a
   keyboard-driven command prompt, no framework and no build step.
 - [lab.monk97.me](https://lab.monk97.me) — live service health for the home lab, published as categories with no endpoints.
+
+- All projects, with source links: https://monk97.me/projects/
+
+## Writing
+
+- [Publishing lab health without publishing the lab](https://monk97.me/work/lab-status)
+  — case study: a public status page for a private network. Collector inside
+  pushes to the Cloudflare edge; labels are an explicit allowlist; anything
+  address-shaped is refused twice and fails closed. Written from public code.
+- Index of case studies: https://monk97.me/work/
 
 ## Contact
 

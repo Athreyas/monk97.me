@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Selected work — Athreyas</title>
+<meta name="description" content="Selected work by Athreyas Yelishetti — infrastructure and reliability case studies, written from public code and verifiable facts.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/work/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=7671583f">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">work</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">Selected work.</h1>
+  <p class="doc__role">Problems, the constraints around them, and what was decided. Written from public code and verifiable facts only.</p>
+
+  <h2 class="doc__h">CASE STUDIES</h2>
+
+  <div class="svc">
+    <div class="svc__top">
+      <span class="svc__dot" aria-hidden="true"></span>
+      <span class="svc__org">HOME LAB · PUBLIC STATUS PAGE</span>
+      <span class="svc__when">2026-09</span>
+    </div>
+    <div class="svc__title"><a href="/work/lab-status">Publishing lab health without publishing the lab</a></div>
+    <ul class="svc__body">
+      <li>A public, measured status page for a private network — with no hostname, IP or port anywhere in the page, the feed, or the repository.</li>
+      <li>Collector inside pushes out to the Cloudflare edge; labels are an explicit allowlist; anything address-shaped is refused twice, and fails closed.</li>
+      <li>Source, live page, and the bugs the first real push surfaced.</li>
+    </ul>
+  </div>
+
+  <!-- Further case studies are added here once their evidence is in and
+       the text is approved. Nothing is listed ahead of that. -->
+
+  <div class="doc__foot">
+    <a href="/">← monk97.me</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>

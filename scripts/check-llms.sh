@@ -55,10 +55,12 @@ done < <(grep -oE 'href="https?://[^"]+"' "$INDEX" | sed 's/href="//;s/"$//' | s
 [ "$missing" = 0 ] && [ "$QUIET" = 0 ] && note "${grn}every outbound link is represented${rst}"
 
 # ── 3. internal links in llms.txt actually exist ──────────────────
+# a path may be a page (/resume -> resume.html) or a directory (/work/ ->
+# work/index.html); nested pages (/work/lab-status) resolve the same way
 while read -r path; do
-  f="$ROOT/sites/root${path}"
-  [ -f "$f" ] || [ -f "$f.html" ] || bad "llms.txt links to $path — no such page"
-done < <(grep -oE 'https://monk97\.me(/[a-z-]*)' "$LLMS" | sed 's|https://monk97.me||' | grep -v '^$' | sort -u)
+  f="$ROOT/sites/root${path%/}"
+  [ -f "$f" ] || [ -f "$f.html" ] || [ -f "$f/index.html" ] || bad "llms.txt links to $path — no such page"
+done < <(grep -oE 'https://monk97\.me(/[a-z0-9/-]*)' "$LLMS" | sed 's|https://monk97.me||' | grep -v '^/*$' | sort -u)
 
 # ── 4. empty sections ─────────────────────────────────────────────
 # An H2 with nothing under it reads as "he has none", which may be wrong.
