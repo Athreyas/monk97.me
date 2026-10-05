@@ -9,3 +9,11 @@
 
 /assets/*
   Cache-Control: public, max-age=3600, must-revalidate
+
+# the résumé PDF: browsers' built-in viewers can render blank under the
+# site-wide default-src 'none' and frame-ancestors 'none'. It is a static
+# file with no scripts, so it gets neither.
+/athreyas-yelishetti-resume.pdf
+  ! Content-Security-Policy
+  ! X-Frame-Options
+  Content-Disposition: inline; filename="Athreyas-Yelishetti-Resume.pdf"

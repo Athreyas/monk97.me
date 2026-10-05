@@ -49,6 +49,12 @@ so links behave locally the way they will in production.
     node    scripts/check-render.mjs   # each status view actually draws
     python3 scripts/stamp-assets.py    # content-hash asset URLs (before deploy)
 
+The résumé PDF (`sites/root/athreyas-yelishetti-resume.pdf`) is `/resume`
+printed by its own print stylesheet, so it is regenerated, never edited.
+After any change to `resume.html` or the print rules in `site.css`, rerun
+`scripts/resume-pdf.mjs` (Playwright setup is in its header) and commit the
+PDF with the change. It refuses to write anything over two pages.
+
 ## Deploy
 
     (cd deploy/lab && npx wrangler pages deploy --branch=production)

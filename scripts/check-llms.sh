@@ -56,11 +56,12 @@ done < <(grep -oE 'href="https?://[^"]+"' "$INDEX" | sed 's/href="//;s/"$//' | s
 
 # ── 3. internal links in llms.txt actually exist ──────────────────
 # a path may be a page (/resume -> resume.html) or a directory (/work/ ->
-# work/index.html); nested pages (/work/lab-status) resolve the same way
+# work/index.html); nested pages (/work/lab-status) resolve the same way, and
+# a file with its own extension (the résumé PDF) must simply exist
 while read -r path; do
   f="$ROOT/sites/root${path%/}"
   [ -f "$f" ] || [ -f "$f.html" ] || [ -f "$f/index.html" ] || bad "llms.txt links to $path — no such page"
-done < <(grep -oE 'https://monk97\.me(/[a-z0-9/-]*)' "$LLMS" | sed 's|https://monk97.me||' | grep -v '^/*$' | sort -u)
+done < <(grep -oE 'https://monk97\.me(/[a-z0-9/._-]*)' "$LLMS" | sed -e 's|https://monk97.me||' -e 's|\.$||' | grep -v '^/*$' | sort -u)
 
 # ── 4. empty sections ─────────────────────────────────────────────
 # An H2 with nothing under it reads as "he has none", which may be wrong.

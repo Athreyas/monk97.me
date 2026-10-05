@@ -35,8 +35,9 @@
   --ease:    cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* dark tokens, defined once and pointed at from both triggers below */
-@media (prefers-color-scheme: dark) {
+/* dark tokens, defined once and pointed at from both triggers below.
+   Screen only: paper is always light, whatever the theme toggle says. */
+@media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg:         #16150f;
     --bg-panel:   #1d1b14;
@@ -52,6 +53,7 @@
   }
 }
 
+@media screen {
 :root[data-theme="dark"] {
   --ok:         #7d9a6b;
   --ok-dim:     rgba(125, 154, 107, 0.2);
@@ -64,6 +66,7 @@
   --accent:     #c8a67c;
   --accent-dim: rgba(200, 166, 124, 0.18);
   --shadow:     rgba(0, 0, 0, 0.4);
+}
 }
 
 /* ── reset ──────────────────────────────────────────────────────── */
@@ -983,3 +986,60 @@ kbd {
    never breaks across two ("36-" / "40 hours"); the bullet around it wraps
    normally. */
 .svc__body strong, .svc__line strong { color: var(--ink); font-weight: 500; white-space: nowrap; }
+
+/* ── /resume on paper ─────────────────────────────────────────────
+   The PDF is this page printed (scripts/resume-pdf.mjs), so a visitor's
+   own Cmd+P gets the same two pages. Same type and components, tighter
+   rhythm; what only makes sense on screen — rail, status, prompt, footer,
+   the in-progress course — is left off. Contact is spelled out as
+   addresses, because paper cannot follow "github". */
+
+.doc__contact--print { display: none; }
+
+@page {
+  size: letter;
+  margin: 0.5in 0.6in 0.55in;
+  @bottom-left {
+    content: "Athreyas Yelishetti · full version at monk97.me/resume";
+    font-family: var(--font-mono); font-size: 7.5pt; color: var(--ink-faint);
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: var(--font-mono); font-size: 7.5pt; color: var(--ink-faint);
+  }
+}
+
+@media print {
+  body { background: none; transition: none; }
+  body.is-doc { padding: 0; font-size: 11.5px; line-height: 1.5; }
+  .doc { max-width: none; }
+
+  .rail, .doc__meta, .doc__foot, .console, .toc, .print-hide,
+  .doc__contact:not(.doc__contact--print) { display: none !important; }
+  .doc__contact--print { display: flex; margin-top: 8px; }
+  .doc__contact a { border-bottom: none; padding-bottom: 0; }
+
+  .doc__name { font-size: 24px; }
+  .doc__role { margin-top: 6px; }
+  .doc__summary { margin-top: 8px; font-size: 11.5px; line-height: 1.55; color: var(--ink-soft); }
+
+  .doc__h { margin: 16px 0 6px; break-after: avoid; }
+
+  .svc { padding: 8px 0; break-inside: avoid; }
+  .svc__title { font-size: 13px; margin-top: 2px; }
+  .svc__bar { margin-top: 5px; }
+  .svc__dur { margin-top: 3px; }
+  .svc__body { margin-top: 5px; gap: 2px; font-size: 11px; line-height: 1.5; }
+  .svc__line { margin-top: 4px; font-size: 11px; line-height: 1.5; color: var(--ink-soft); }
+  /* relative links would print as nothing useful — say where they go */
+  .svc__line a[href^="/"]::after { content: " · monk97.me" attr(href); color: var(--ink-faint); }
+
+  .caps__k, .caps__v { padding: 3px 0; break-inside: avoid; }
+  .caps__v { font-size: 11px; line-height: 1.5; }
+  .edu { padding: 4px 0; break-inside: avoid; }
+  .edu__what { font-size: 12px; }
+  .edu__where { font-size: 11px; margin-top: 1px; }
+
+  /* paper drops backgrounds by default; the bars and dots are content */
+  .svc__bar, .svc__fill, .svc__dot { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
