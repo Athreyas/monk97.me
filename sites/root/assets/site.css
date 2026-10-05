@@ -674,6 +674,9 @@ body.is-doc {
 .edu__when { font-size: 10.5px; letter-spacing: 0.1em; color: var(--ink-faint); padding-top: 3px; }
 .edu__what { font-size: 13px; color: var(--ink); }
 .edu__where { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
+/* degrees share one row: the institution follows the degree, quieter */
+.edu__what + .edu__what { margin-top: 4px; }
+.edu__at { font-size: 12px; color: var(--ink-soft); }
 
 /* ── foot ───────────────────────────────────────────────────────── */
 
@@ -1004,8 +1007,8 @@ kbd {
    The PDF is this page printed (scripts/resume-pdf.mjs), so a visitor's
    own Cmd+P gets the same two pages. Same components and order, set in
    the paper serif and accent from the token block, with a tighter rhythm;
-   what only makes sense on screen — rail, status, prompt, footer, the
-   in-progress course — is left off. Contact is spelled out as
+   what only makes sense on screen — rail, status, prompt, footer — is
+   left off. Contact is spelled out as
    addresses, because paper cannot follow "github". */
 
 .doc__contact--print { display: none; }
@@ -1029,7 +1032,7 @@ kbd {
   body.is-doc { padding: 0; font-size: 11.5px; line-height: 1.5; }
   .doc { max-width: none; }
 
-  .rail, .doc__meta, .doc__foot, .console, .toc, .print-hide,
+  .rail, .doc__meta, .doc__foot, .console, .toc,
   .doc__contact:not(.doc__contact--print) { display: none !important; }
   .doc__contact--print { display: flex; margin-top: 8px; }
   .doc__contact a { border-bottom: none; padding-bottom: 0; }
@@ -1071,7 +1074,8 @@ kbd {
   .svc__body strong, .svc__line strong { font-weight: 700; }
   .caps__k { font-size: 10.5px; }
   .edu__what { font-size: 12.5px; }
-  .edu__where, .edu__when { font-size: 11.5px; }
+  .edu__where, .edu__when, .edu__at { font-size: 11.5px; }
+  .edu__what + .edu__what { margin-top: 2px; }
 
   /* paper drops backgrounds by default; the bars and dots are content */
   .svc__bar, .svc__fill, .svc__dot { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
