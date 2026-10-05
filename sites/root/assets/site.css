@@ -24,6 +24,11 @@
   --font-voice: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-mono:  'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* paper — the printed résumé reads as a résumé, not a terminal: the
+     serif and slate blue of the one Art has sent out for years */
+  --font-paper:  Georgia, 'Times New Roman', serif;
+  --paper-accent: #3b5f8f;
+
   /* column caps — .doc and body.card .wrap referenced these but they were
      never defined, so both resolved to max-width:none and ran full-bleed. */
   --doc:     680px;
@@ -623,14 +628,22 @@ body.is-doc {
 
 .svc__title { font-size: 15px; font-weight: 500; color: var(--ink); margin-top: 8px; letter-spacing: -0.01em; }
 
-/* tenure bar — width is proportional to real months served */
+/* tenure bar — width is proportional to real months at the employer, so it
+   sits under the employer line and above the title(s) */
 .svc__bar {
   height: 3px; border-radius: 2px; background: var(--line);
-  margin-top: 12px; overflow: hidden;
+  margin-top: 10px; overflow: hidden;
 }
+.svc__bar + .svc__title { margin-top: 12px; }
 .svc__fill { height: 100%; background: var(--accent); border-radius: 2px; }
 .svc--past .svc__fill { background: var(--ink-faint); }
-.svc__dur { font-size: 10.5px; letter-spacing: 0.1em; color: var(--ink-faint); margin-top: 7px; }
+/* more than one title at one employer: each carries its own dates */
+.svc__title--role { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
+.svc__span {
+  margin-left: auto; font-size: 11px; font-weight: 400;
+  letter-spacing: 0.06em; color: var(--ink-faint);
+}
+.svc__body + .svc__title--role { margin-top: 20px; }
 
 .svc__body {
   list-style: none; color: var(--ink-soft); margin-top: 13px;
@@ -676,7 +689,7 @@ body.is-doc {
 @media (max-width: 560px) {
   .caps, .edu { grid-template-columns: 1fr; gap: 0; }
   .caps__v { padding-top: 0; border-top: none; }
-  .svc__when { margin-left: 0; width: 100%; }
+  .svc__when, .svc__span { margin-left: 0; width: 100%; }
   .doc__foot { flex-direction: column; gap: 8px; }
 }
 
@@ -989,9 +1002,10 @@ kbd {
 
 /* ── /resume on paper ─────────────────────────────────────────────
    The PDF is this page printed (scripts/resume-pdf.mjs), so a visitor's
-   own Cmd+P gets the same two pages. Same type and components, tighter
-   rhythm; what only makes sense on screen — rail, status, prompt, footer,
-   the in-progress course — is left off. Contact is spelled out as
+   own Cmd+P gets the same two pages. Same components and order, set in
+   the paper serif and accent from the token block, with a tighter rhythm;
+   what only makes sense on screen — rail, status, prompt, footer, the
+   in-progress course — is left off. Contact is spelled out as
    addresses, because paper cannot follow "github". */
 
 .doc__contact--print { display: none; }
@@ -1010,6 +1024,7 @@ kbd {
 }
 
 @media print {
+  :root { --font-mono: var(--font-paper); --accent: var(--paper-accent); }
   body { background: none; transition: none; }
   body.is-doc { padding: 0; font-size: 11.5px; line-height: 1.5; }
   .doc { max-width: none; }
@@ -1028,7 +1043,8 @@ kbd {
   .svc { padding: 8px 0; break-inside: avoid; }
   .svc__title { font-size: 13px; margin-top: 2px; }
   .svc__bar { margin-top: 5px; }
-  .svc__dur { margin-top: 3px; }
+  .svc__bar + .svc__title { margin-top: 5px; }
+  .svc__body + .svc__title--role { margin-top: 8px; }
   .svc__body { margin-top: 5px; gap: 2px; font-size: 11px; line-height: 1.5; }
   .svc__line { margin-top: 4px; font-size: 11px; line-height: 1.5; color: var(--ink-soft); }
   /* relative links would print as nothing useful — say where they go */
@@ -1039,6 +1055,23 @@ kbd {
   .edu { padding: 4px 0; break-inside: avoid; }
   .edu__what { font-size: 12px; }
   .edu__where { font-size: 11px; margin-top: 1px; }
+
+  /* the serif wants a little more size and real weight where mono used
+     colour; section heads take the accent, as on the old résumé */
+  body.is-doc { font-size: 12.5px; }
+  .doc__name { font-size: 32px; font-weight: 400; letter-spacing: 0; color: var(--accent); }
+  .doc__role { font-size: 13.5px; color: var(--ink); }
+  .doc__summary, .doc__contact--print { font-size: 12.5px; }
+  .doc__h { font-size: 12.5px; letter-spacing: 0.22em; color: var(--accent); }
+  .svc__org { font-size: 11.5px; letter-spacing: 0.12em; font-weight: 700; }
+  .svc__when, .svc__span { font-size: 11.5px; font-style: italic; letter-spacing: 0; color: var(--ink-soft); }
+  .svc__title, .svc--now .svc__title, .svc--compact .svc__title { font-size: 13.5px; font-weight: 700; }
+  .svc__body, .svc__line, .caps__v { font-size: 12px; }
+  .svc__body li::before { content: '•'; color: var(--ink-faint); }
+  .svc__body strong, .svc__line strong { font-weight: 700; }
+  .caps__k { font-size: 10.5px; }
+  .edu__what { font-size: 12.5px; }
+  .edu__where, .edu__when { font-size: 11.5px; }
 
   /* paper drops backgrounds by default; the bars and dots are content */
   .svc__bar, .svc__fill, .svc__dot { print-color-adjust: exact; -webkit-print-color-adjust: exact; }

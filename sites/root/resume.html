@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=96b47c63">
+<link rel="stylesheet" href="/assets/site.css?v=32951040">
 
 <script src="/assets/theme.js?v=390ff9fc"></script>
 </head>
@@ -80,20 +80,20 @@
   </div>
   </div>
 
-  <!-- ── services ─────────────────────────────────────────────────
-       Bar widths are proportional to real months served, scaled to the
-       longest tenure. Do not hand-tune them away from the durations. -->
-  <h2 class="doc__h" id="services" data-toc>SERVICES</h2>
+  <!-- ── experience ───────────────────────────────────────────────
+       One entry per employer; the date line carries the tenure. Bar
+       widths are proportional to real months at the employer, scaled to
+       the longest (Akamai, 59). Do not hand-tune them away from that. -->
+  <h2 class="doc__h" id="experience" data-toc>EXPERIENCE</h2>
 
   <div class="svc svc--now">
     <div class="svc__top">
       <span class="svc__dot" aria-hidden="true"></span>
       <span class="svc__org">ZSCALER</span>
-      <span class="svc__when">2021-12 → PRESENT</span>
+      <span class="svc__when">2021-12 → PRESENT · 4Y 10M</span>
     </div>
+    <div class="svc__bar"><div class="svc__fill" style="width:98%"></div></div>
     <div class="svc__title">Senior Staff Site Reliability Engineer</div>
-    <div class="svc__bar"><div class="svc__fill" style="width:100%"></div></div>
-    <div class="svc__dur">4Y 9M · ACTIVE</div>
     <ul class="svc__body">
       <li>Provision and operate the inline zero-trust proxy fleet across <strong>100+ data centers</strong>, on Zscaler-owned Linux and BSD hardware.</li>
       <li>Re-architected provisioning into a self-executing Python init package, now in production, cutting full-cluster setup from <strong>36–40 hours</strong> to <strong>6–8 hours</strong>.</li>
@@ -105,27 +105,16 @@
     <div class="svc__top">
       <span class="svc__dot" aria-hidden="true"></span>
       <span class="svc__org">AKAMAI TECHNOLOGIES</span>
-      <span class="svc__when">2019-06 → 2021-12</span>
+      <span class="svc__when">2017-01 → 2021-12 · 4Y 11M</span>
     </div>
-    <div class="svc__title">Senior Site Reliability Engineer</div>
-    <div class="svc__bar"><div class="svc__fill" style="width:53%"></div></div>
-    <div class="svc__dur">2Y 6M</div>
+    <div class="svc__bar"><div class="svc__fill" style="width:100%"></div></div>
+    <div class="svc__title svc__title--role">Senior Site Reliability Engineer<span class="svc__span">2019-06 → 2021-12 · 2Y 6M</span></div>
     <ul class="svc__body">
       <li>Unblocked stalled customer onboardings, working through application configuration until production.</li>
       <li>Ran multi-region AWS infrastructure for Enterprise Application Access with Terraform, Ansible and Elasticsearch.</li>
       <li>Structured data-path upgrades to avoid customer traffic interruptions, organized management-path rollouts, and added SSO/RBAC to internal tooling and cloud instances.</li>
     </ul>
-  </div>
-
-  <div class="svc svc--past">
-    <div class="svc__top">
-      <span class="svc__dot" aria-hidden="true"></span>
-      <span class="svc__org">AKAMAI TECHNOLOGIES</span>
-      <span class="svc__when">2017-01 → 2019-06</span>
-    </div>
-    <div class="svc__title">Escalation Engineer</div>
-    <div class="svc__bar"><div class="svc__fill" style="width:51%"></div></div>
-    <div class="svc__dur">2Y 5M</div>
+    <div class="svc__title svc__title--role">Escalation Engineer<span class="svc__span">2017-01 → 2019-06 · 2Y 5M</span></div>
     <ul class="svc__body">
       <li>Led <strong>25–30 customer onboardings</strong> through production and worked <strong>10+ proofs of concept</strong> end to end.</li>
       <li>Supported <strong>60–80 customers</strong> after onboarding; <strong>10–15 asked for me</strong> on their calls.</li>
@@ -137,12 +126,22 @@
   <div class="svc svc--past svc--compact">
     <div class="svc__top">
       <span class="svc__dot" aria-hidden="true"></span>
-      <span class="svc__org">REDCENTRIC PLC</span>
-      <span class="svc__when">2013-03 → 2015-08</span>
+      <span class="svc__org">SOFTCOM INC</span>
+      <span class="svc__when">2016-11 → 2016-12 · 1M</span>
     </div>
+    <div class="svc__bar"><div class="svc__fill" style="width:2%"></div></div>
+    <div class="svc__title">Operations &amp; Management Engineer</div>
+    <p class="svc__line">Contract with the US Patent and Trademark Office. Maintained Linux/Windows servers for messaging, image conversion and translation; automated server and backup operations.</p>
+  </div>
+
+  <div class="svc svc--past svc--compact">
+    <div class="svc__top">
+      <span class="svc__dot" aria-hidden="true"></span>
+      <span class="svc__org">REDCENTRIC PLC</span>
+      <span class="svc__when">2013-03 → 2015-08 · 2Y 5M</span>
+    </div>
+    <div class="svc__bar"><div class="svc__fill" style="width:49%"></div></div>
     <div class="svc__title">Senior Application Support Engineer</div>
-    <div class="svc__bar"><div class="svc__fill" style="width:51%"></div></div>
-    <div class="svc__dur">2Y 5M</div>
     <p class="svc__line">Managed and supported enterprise applications hosted by clients, traced transaction failures to root cause, and built Nagios monitoring and routine automation.</p>
   </div>
 
@@ -150,24 +149,11 @@
     <div class="svc__top">
       <span class="svc__dot" aria-hidden="true"></span>
       <span class="svc__org">CITRIX R&amp;D SYSTEMS</span>
-      <span class="svc__when">2010-06 → 2012-08</span>
+      <span class="svc__when">2010-06 → 2012-08 · 2Y 2M</span>
     </div>
+    <div class="svc__bar"><div class="svc__fill" style="width:44%"></div></div>
     <div class="svc__title">Support Engineer</div>
-    <div class="svc__bar"><div class="svc__fill" style="width:46%"></div></div>
-    <div class="svc__dur">2Y 2M</div>
     <p class="svc__line">Developed, tested and published Citrix App Store SSO connectors; configured AD, certificate services and SAML for identity-management products.</p>
-  </div>
-
-  <div class="svc svc--past svc--compact">
-    <div class="svc__top">
-      <span class="svc__dot" aria-hidden="true"></span>
-      <span class="svc__org">SOFTCOM INC</span>
-      <span class="svc__when">2016-11 → 2016-12</span>
-    </div>
-    <div class="svc__title">Operations &amp; Management Engineer</div>
-    <div class="svc__bar"><div class="svc__fill" style="width:2%"></div></div>
-    <div class="svc__dur">CONTRACT · US PATENT AND TRADEMARK OFFICE</div>
-    <p class="svc__line">Maintained Linux/Windows servers for messaging, image conversion and translation; automated server and backup operations.</p>
   </div>
 
   <!-- ── the lab ──────────────────────────────────────────────── -->
