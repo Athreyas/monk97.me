@@ -608,6 +608,7 @@ kbd {
 .meter__fill[data-hot] { background: var(--bad); }
 .meter__v { color: var(--ink-soft); white-space: nowrap; min-width: 62px; text-align: right; }
 .host__line { margin-top: 9px; font-size: 10px; color: var(--ink-faint); letter-spacing: 0.04em; }
+.host__line--warn { margin-top: 4px; color: var(--bad); }
 
 .spec { margin-top: 22px; }        /* spec leads the pair now */
 .spec + .host { margin-top: 12px; } /* vitals tucks in under it */

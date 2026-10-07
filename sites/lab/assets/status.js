@@ -275,12 +275,12 @@
     if (!box) return;
     if (!h) { box.hidden = true; return; }
     box.textContent = '';
-    var meter = function (k, pct, v) {
+    var meter = function (k, pct, v, hot) {
       var m = el('div', 'meter');
       m.appendChild(el('span', 'meter__k', k));
       var bar = el('span', 'meter__bar'); bar.setAttribute('aria-hidden', 'true');
       var fill = el('i', 'meter__fill'); fill.style.width = Math.max(0, Math.min(100, pct)) + '%';
-      if (pct >= 90) fill.setAttribute('data-hot', '1');
+      if (hot || pct >= 90) fill.setAttribute('data-hot', '1');
       bar.appendChild(fill); m.appendChild(bar);
       m.appendChild(el('span', 'meter__v', v));
       return m;
@@ -293,10 +293,15 @@
     else row.appendChild(meter('LOAD', Math.min(100, 100 * h.load1 / Math.max(1, h.cores)), h.load1.toFixed(2)));
     row.appendChild(meter('DISK', h.disk_pct, h.disk_pct.toFixed(0) + '%'));
     row.appendChild(meter('MEM',  h.mem_pct,  h.mem_used_gb.toFixed(0) + ' / ' + h.mem_total_gb.toFixed(0) + ' GB'));
+    /* the backup store: red from 80%, before a full quota fails the nightly job */
+    var b = h.backup;
+    if (b) row.appendChild(meter('BKUP', b.used_pct, b.used_gb.toFixed(0) + ' / ' + b.total_gb.toFixed(0) + ' GB', b.warn));
     box.appendChild(row);
     var bits = ['load ' + h.load1.toFixed(2) + ' on ' + h.cores + ' cores', 'up ' + h.uptime_days + 'd'];
     if (h.gpu && h.gpu.model) bits.push(h.gpu.model + ' \u00b7 ' + h.gpu.mem_pct.toFixed(0) + '% vram');
     box.appendChild(el('div', 'host__line', '# ' + bits.join('  \u00b7  ')));
+    if (b && b.warn) box.appendChild(el('div', 'host__line host__line--warn',
+      '! backup store ' + b.used_pct.toFixed(0) + '% full \u2014 prune before the nightly job fails'));
     box.hidden = false;
   }
 

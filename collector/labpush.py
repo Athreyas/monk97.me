@@ -17,6 +17,8 @@ Stdlib only. Python 3.8+. Config via environment:
   STATE_DIR     /var/lib/labpush               (daily history lives here)
   HEARTBEAT     seconds between forced pushes  (default 300)
   INTERVAL      poll seconds                   (default 60)
+  STORAGE_FILE  pvesh storage dump             (default /var/lib/labpush/storage.json)
+  BACKUP_STORAGE  PVE storage id to watch      (default: the first of type pbs)
 Flags: --once (single cycle) --print (emit payload, no push) --selftest
 """
 import json, os, re, sys, time, shutil, subprocess, urllib.request, urllib.error, datetime as dt, hashlib
@@ -31,6 +33,8 @@ CFG = {
     'HEARTBEAT':  int(os.environ.get('HEARTBEAT', '300')),
     'INTERVAL':   int(os.environ.get('INTERVAL', '60')),
     'MAP':        os.environ.get('PUBLISH_MAP', os.path.join(HERE, 'publish-map.json')),
+    'STORAGE_FILE':   os.environ.get('STORAGE_FILE', '/var/lib/labpush/storage.json'),
+    'BACKUP_STORAGE': os.environ.get('BACKUP_STORAGE', ''),
 }
 
 def log(*a): print(dt.datetime.now().strftime('%H:%M:%S'), *a, flush=True)
@@ -88,6 +92,29 @@ def gpu():
     except Exception:
         return None
 
+# The backup datastore fills silently: a full PBS quota fails every nightly
+# job while the server itself stays up and its monitor stays green. labpush
+# is unprivileged and cannot ask the PVE API, so a root cron line dumps
+# `pvesh get /nodes/<node>/storage` to STORAGE_FILE and this reads it.
+BACKUP_WARN_PCT = 80.0
+
+def backup_store():
+    path = CFG['STORAGE_FILE']
+    try:
+        if time.time() - os.path.getmtime(path) > 1800: return None   # a stale dump is not a reading
+        with open(path) as f: rows = json.load(f)
+    except Exception:
+        return None
+    want = CFG['BACKUP_STORAGE']
+    for r in rows:
+        if (r.get('storage') == want) if want else (r.get('type') == 'pbs'):
+            total, used = r.get('total') or 0, r.get('used') or 0
+            if not r.get('active') or total <= 0: return None
+            p = round(100.0 * used / total, 1)
+            return {'used_pct': p, 'used_gb': round(used / 1e9, 1), 'total_gb': round(total / 1e9, 1),
+                    'warn': p >= BACKUP_WARN_PCT}
+    return None
+
 def host():
     total, used = mem()
     du = shutil.disk_usage(os.environ.get('DISK_PATH', '/'))
@@ -97,7 +124,7 @@ def host():
         'cpu_pct': round(cpu_pct(), 1), 'load1': round(load1, 2), 'cores': os.cpu_count() or 1,
         'mem_pct': round(100.0 * used / total, 1), 'mem_used_gb': round(used, 1), 'mem_total_gb': round(total, 1),
         'disk_pct': round(100.0 * du.used / du.total, 1), 'disk_used_gb': round(du.used / 1e9, 1), 'disk_total_gb': round(du.total / 1e9, 1),
-        'gpu': gpu(), 'uptime_days': int(up // 86400),
+        'gpu': gpu(), 'uptime_days': int(up // 86400), 'backup': backup_store(),
     }
 
 # ── host spec: the static hardware underneath the meters ──────────────────
@@ -423,6 +450,18 @@ def selftest():
     assert doc['summary']['state'] == 'degraded', doc['summary']
     blob = json.dumps(doc)
     assert 'not-in-map' not in blob and '192.168' not in blob
+    # backup store: picked by type, warns from 80%, ignores a stale dump
+    os.makedirs(CFG['STATE_DIR'], exist_ok=True)
+    CFG['STORAGE_FILE'] = os.path.join(CFG['STATE_DIR'], 'storage.json')
+    def dump(used):
+        with open(CFG['STORAGE_FILE'], 'w') as f:
+            json.dump([{'storage': 'local', 'type': 'dir', 'active': 1, 'total': 100, 'used': 99},
+                       {'storage': 'pbs-x', 'type': 'pbs', 'active': 1, 'total': 400e9, 'used': used}], f)
+    dump(100e9); b = backup_store()
+    assert b == {'used_pct': 25.0, 'used_gb': 100.0, 'total_gb': 400.0, 'warn': False}, b
+    dump(320e9); assert backup_store()['warn'] is True
+    os.utime(CFG['STORAGE_FILE'], (0, 0)); assert backup_store() is None
+    os.remove(CFG['STORAGE_FILE']); assert backup_store() is None
     print('selftest ok:', doc['summary'])
 
 if __name__ == '__main__':

@@ -93,15 +93,17 @@ doc = {
         "cpu_pct": 14.2, "load1": 0.84, "cores": 32,
         "mem_pct": 61.3, "mem_used_gb": 38.0, "mem_total_gb": 62.0,
         "disk_pct": 21.0, "disk_used_gb": 318.0, "disk_total_gb": 1512.0,
-        "gpu": {"model": "RTX 3060 Ti", "util_pct": 3.0, "mem_pct": 22.0, "temp_c": 41},
+        "gpu": {"model": "RTX PRO 2000 Blackwell", "util_pct": 3.0, "mem_pct": 22.0, "temp_c": 41},
         "uptime_days": 3,
+        # the backup datastore; warn is the collector's 80% line, not the page's
+        "backup": {"used_pct": 24.8, "used_gb": 106.3, "total_gb": 429.5, "warn": False},
     },
     # host spec — static hardware. Unlike everything else in this fixture
     # these are the real figures: the collector reads them off the box and
     # will emit exactly this, so the preview matches production.
     "spec": [
         {"k": "CPU",      "v": "Intel Xeon E5-2697A v4 · 16C / 32T · 2.6–3.6 GHz"},
-        {"k": "GPU",      "v": "RTX 3060 Ti · 8 GB"},
+        {"k": "GPU",      "v": "RTX PRO 2000 Blackwell · 16 GB"},
         {"k": "MEMORY",   "v": "64 GB"},
         {"k": "STORAGE",  "v": "1.5 TB · NVMe + SATA SSD"},
         {"k": "NETWORK",  "v": "1 GbE"},

@@ -35,6 +35,19 @@ of a lab), in which case the push lands on an internal reverse proxy and
 comes back 404 from a server that has never heard of `/api/ingest`. The
 `pages.dev` hostname is only ever the edge.
 
+### Backup store fill
+
+The vitals strip shows how full the backup datastore is (`host.backup`), red
+from 80% — a full PBS quota fails every nightly job while the server and its
+monitor stay green. labpush cannot query the PVE API as an unprivileged user,
+so root dumps the storage list for it every five minutes:
+
+    echo '*/5 * * * * root pvesh get /nodes/$(hostname)/storage --output-format json > /var/lib/labpush/storage.json.tmp && mv /var/lib/labpush/storage.json.tmp /var/lib/labpush/storage.json' > /etc/cron.d/labpush-storage
+
+It watches the first storage of type `pbs`; set `BACKUP_STORAGE=<id>` in
+`/etc/labpush/env` to pick another. A dump older than 30 minutes is ignored,
+and the meter disappears rather than show a stale number.
+
 Check the payload before trusting it: `sudo -u labpush env $(cat /etc/labpush/env) python3 /opt/labpush/labpush.py --print`.
 
 ## Incidents
