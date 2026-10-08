@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
 <script src="/assets/theme.js?v=390ff9fc"></script>
-<link rel="stylesheet" href="/assets/lab.css?v=665d534a">
+<link rel="stylesheet" href="/assets/lab.css?v=619157e5">
 </head>
 
 <body>
@@ -74,152 +74,14 @@
 
   <div class="vitals" data-vitals id="overview" data-toc="OVERVIEW"></div>
 
-  <section class="arch" id="architecture" data-toc="ARCHITECTURE">
-    <h2 class="sec">ARCHITECTURE · ROLES, NOT ADDRESSES</h2>
-    <p class="body--soft arch__lede">
-      One hypervisor on a home network. Every service is a small guest with
-      its own place on that network; storage is split by whether losing it
-      would matter.
-    </p>
-
-    <figure class="arch__fig">
-      <div class="arch__scroll">
-      <svg viewBox="0 0 640 486" role="img" aria-label="The internet edge and a mesh VPN sit above one home network with a router, family devices and a NAS. One hypervisor host joins that network and bridges its guests onto it: edge, apps, files and compute roles. Guest disks live on a SATA SSD and are backed up nightly to the NAS; shared files and model weights live on an NVMe and are not backed up.">
-        <defs>
-          <marker id="arch-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arch__ah"/></marker>
-          <marker id="arch-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arch__ah-a"/></marker>
-        </defs>
-
-        <rect x="0.5" y="0.5" width="639" height="58" class="arch__zone"/>
-        <text x="10" y="14" class="arch__z">INTERNET</text>
-        <rect x="10" y="22" width="300" height="28" class="arch__box"/>
-        <text x="20" y="40" class="arch__t">dns + edge · hosts this page</text>
-        <rect x="330" y="22" width="300" height="28" class="arch__box"/>
-        <text x="340" y="40" class="arch__t">mesh vpn · remote access</text>
-
-        <rect x="0.5" y="70.5" width="639" height="104" class="arch__zone"/>
-        <text x="10" y="84" class="arch__z">HOME NETWORK · ONE SEGMENT</text>
-        <rect x="10" y="92" width="190" height="28" class="arch__box"/>
-        <text x="20" y="110" class="arch__t">router</text>
-        <rect x="225" y="92" width="190" height="28" class="arch__box"/>
-        <text x="235" y="110" class="arch__t">family devices</text>
-        <rect x="440" y="92" width="190" height="28" class="arch__box"/>
-        <text x="450" y="110" class="arch__t">nas</text>
-        <line x1="180" y1="92" x2="180" y2="50" class="arch__ln"/>
-        <line x1="10" y1="150" x2="630" y2="150" class="arch__bus"/>
-        <line x1="105" y1="120" x2="105" y2="150" class="arch__ln"/>
-        <line x1="320" y1="120" x2="320" y2="150" class="arch__ln"/>
-        <line x1="535" y1="120" x2="535" y2="150" class="arch__ln"/>
-
-        <rect x="0.5" y="186.5" width="639" height="294" class="arch__zone"/>
-        <text x="10" y="200" class="arch__z">HYPERVISOR · ONE HOST</text>
-        <line x1="600" y1="150" x2="600" y2="214" class="arch__ln"/>
-        <line x1="10" y1="214" x2="630" y2="214" class="arch__bridge"/>
-
-        <text x="10" y="234" class="arch__z">EDGE</text>
-        <text x="167" y="234" class="arch__z">APPS</text>
-        <text x="324" y="234" class="arch__z">FILES</text>
-        <text x="481" y="234" class="arch__z">COMPUTE</text>
-
-        <rect x="10" y="242" width="149" height="26" class="arch__box"/><text x="18" y="259" class="arch__t">vpn gateway</text>
-        <rect x="10" y="274" width="149" height="26" class="arch__box"/><text x="18" y="291" class="arch__t">dns filter</text>
-        <rect x="10" y="306" width="149" height="26" class="arch__box"/><text x="18" y="323" class="arch__t">reverse proxy · tls</text>
-        <rect x="10" y="338" width="149" height="26" class="arch__box"/><text x="18" y="355" class="arch__t">identity provider</text>
-
-        <rect x="167" y="242" width="149" height="26" class="arch__box"/><text x="175" y="259" class="arch__t">monitoring</text>
-        <rect x="167" y="274" width="149" height="26" class="arch__box"/><text x="175" y="291" class="arch__t">home automation</text>
-        <rect x="167" y="306" width="149" height="26" class="arch__box"/><text x="175" y="323" class="arch__t">documentation</text>
-        <rect x="167" y="338" width="149" height="26" class="arch__box"/><text x="175" y="355" class="arch__t">isolated browser</text>
-
-        <rect x="324" y="242" width="149" height="26" class="arch__box"/><text x="332" y="259" class="arch__t">remote desktop (vm)</text>
-        <rect x="324" y="274" width="149" height="26" class="arch__box"/><text x="332" y="291" class="arch__t">file browser</text>
-
-        <rect x="481" y="242" width="149" height="26" class="arch__box arch__box--hot"/><text x="489" y="259" class="arch__t">gpu workbench</text>
-        <rect x="481" y="274" width="149" height="26" class="arch__box"/><text x="489" y="291" class="arch__t">backup server</text>
-
-        <text x="10" y="404" class="arch__z">STORAGE</text>
-        <rect x="10" y="412" width="306" height="56" class="arch__box"/>
-        <text x="20" y="429" class="arch__t">sata ssd</text>
-        <text x="20" y="444" class="arch__s">every guest's own disk</text>
-        <text x="20" y="459" class="arch__s">backed up nightly</text>
-        <rect x="324" y="412" width="149" height="56" class="arch__box"/>
-        <text x="332" y="429" class="arch__t">nvme</text>
-        <text x="332" y="444" class="arch__s">shared files, models</text>
-        <text x="332" y="459" class="arch__a">not backed up</text>
-        <rect x="481" y="412" width="149" height="56" class="arch__box"/>
-        <text x="489" y="429" class="arch__t">nas share</text>
-        <text x="489" y="444" class="arch__s">backup datastore</text>
-        <text x="489" y="459" class="arch__s">deduplicated</text>
-
-        <line x1="398" y1="300" x2="398" y2="410" class="arch__ln-a" marker-end="url(#arch-ma)"/>
-        <path d="M481,255 H477 V400 H462 V410" class="arch__ln-a" marker-end="url(#arch-ma)"/>
-        <line x1="555" y1="300" x2="555" y2="410" class="arch__ln" marker-end="url(#arch-m)"/>
-        <path d="M630,440 H636 V106 H632" class="arch__ln" marker-end="url(#arch-m)"/>
-      </svg>
-      </div>
-      <figcaption class="arch__cap">Dashed lines are folders shared from the fast disk; backups skip them on purpose, because models can be downloaded again. Backups leave the host for the nas over the home network.</figcaption>
-    </figure>
-
-    <figure class="arch__fig">
-      <div class="arch__scroll">
-      <svg viewBox="0 0 640 190" role="img" aria-label="A browser looks up a lab name in public DNS, then reaches the reverse proxy directly at home or through the mesh VPN gateway when away. The proxy checks identity for some apps and forwards to the service.">
-        <rect x="10" y="80" width="120" height="30" class="arch__box"/>
-        <text x="20" y="99" class="arch__t">your browser</text>
-        <rect x="170" y="10" width="170" height="30" class="arch__box"/>
-        <text x="180" y="29" class="arch__t">public dns</text>
-        <path d="M70,80 V25 H168" class="arch__ln" marker-end="url(#arch-m)"/>
-        <text x="78" y="62" class="arch__s">1 · name lookup</text>
-
-        <rect x="330" y="80" width="150" height="30" class="arch__box arch__box--hot"/>
-        <text x="340" y="99" class="arch__t">reverse proxy · tls</text>
-        <line x1="130" y1="95" x2="328" y2="95" class="arch__ln" marker-end="url(#arch-m)"/>
-        <text x="229" y="89" class="arch__s" text-anchor="middle">2a · at home</text>
-
-        <rect x="170" y="150" width="140" height="30" class="arch__box"/>
-        <text x="180" y="169" class="arch__t">mesh vpn gateway</text>
-        <path d="M70,110 V165 H168" class="arch__ln" marker-end="url(#arch-m)"/>
-        <text x="78" y="140" class="arch__s">2b · away</text>
-        <path d="M310,165 H318 V103 H328" class="arch__ln" marker-end="url(#arch-m)"/>
-
-        <rect x="520" y="80" width="110" height="30" class="arch__box"/>
-        <text x="530" y="99" class="arch__t">service</text>
-        <line x1="480" y1="95" x2="518" y2="95" class="arch__ln" marker-end="url(#arch-m)"/>
-        <text x="499" y="89" class="arch__s" text-anchor="middle">3</text>
-
-        <rect x="330" y="150" width="150" height="30" class="arch__box"/>
-        <text x="340" y="169" class="arch__t">identity check</text>
-        <line x1="405" y1="110" x2="405" y2="148" class="arch__ln-a" marker-end="url(#arch-ma)"/>
-        <text x="412" y="133" class="arch__a">some apps</text>
-      </svg>
-      </div>
-      <figcaption class="arch__cap">The public name resolves to a private address. At home that is one hop; away, only devices on the mesh vpn can follow it.</figcaption>
-    </figure>
-
-    <figure class="arch__fig">
-      <div class="arch__scroll">
-      <svg viewBox="0 0 640 112" role="img" aria-label="Nightly, guest disks are snapshotted to the backup server, which stores deduplicated chunks on the NAS. Separately, the uptime monitor feeds a collector that pushes labels-only status to the edge, which serves this page.">
-        <text x="10" y="12" class="arch__z">NIGHTLY BACKUP</text>
-        <rect x="10" y="18" width="150" height="28" class="arch__box"/><text x="20" y="36" class="arch__t">guest disks</text>
-        <rect x="245" y="18" width="150" height="28" class="arch__box"/><text x="255" y="36" class="arch__t">backup server</text>
-        <rect x="480" y="18" width="150" height="28" class="arch__box"/><text x="490" y="36" class="arch__t">nas share</text>
-        <line x1="160" y1="32" x2="243" y2="32" class="arch__ln" marker-end="url(#arch-m)"/>
-        <text x="202" y="27" class="arch__s" text-anchor="middle">snapshot</text>
-        <line x1="395" y1="32" x2="478" y2="32" class="arch__ln" marker-end="url(#arch-m)"/>
-        <text x="437" y="27" class="arch__s" text-anchor="middle">chunks</text>
-
-        <text x="10" y="72" class="arch__z">THIS PAGE</text>
-        <rect x="10" y="78" width="150" height="28" class="arch__box"/><text x="20" y="96" class="arch__t">uptime monitor</text>
-        <rect x="245" y="78" width="150" height="28" class="arch__box"/><text x="255" y="96" class="arch__t">collector</text>
-        <rect x="480" y="78" width="150" height="28" class="arch__box arch__box--hot"/><text x="490" y="96" class="arch__t">edge</text>
-        <line x1="160" y1="92" x2="243" y2="92" class="arch__ln" marker-end="url(#arch-m)"/>
-        <text x="202" y="87" class="arch__s" text-anchor="middle">every 60 s</text>
-        <line x1="395" y1="92" x2="478" y2="92" class="arch__ln" marker-end="url(#arch-m)"/>
-        <text x="437" y="87" class="arch__s" text-anchor="middle">labels only</text>
-      </svg>
-      </div>
-      <figcaption class="arch__cap">Nothing calls into the lab to build this page. The collector pushes out, and the edge refuses anything shaped like an address.</figcaption>
-    </figure>
-  </section>
+  <a class="fold fold__sum archlink" id="architecture" data-toc="ARCHITECTURE"
+     href="https://monk97.me/writing/architecture">
+    <span class="fold__head">
+      <span class="sec fold__title">ARCHITECTURE</span>
+      <span class="fold__line">one host, twelve guests, two ways in</span>
+    </span>
+    <span class="fold__cue archlink__cue">the map</span>
+  </a>
 
   <details class="fold" id="services" data-toc="SERVICE HEALTH">
     <summary class="fold__sum">
