@@ -113,7 +113,7 @@ sudo dmidecode -t memory | grep -E 'Locator|Size|Speed' | grep -v 'No Module'</p
   <ul>
     <li><strong>Shut down cleanly first.</strong> Guests set to start on boot come back on their own; it is still worth a clean shutdown so nothing is mid-write.</li>
     <li><strong>Photograph the BIOS settings.</strong> Virtualisation, VT-d and boot mode are what Proxmox and the GPU depend on, and a CPU change or a BIOS update can reset them.</li>
-    <li><strong>BIOS:</strong> <span class="ask">did this need a BIOS update first (A33 → A34?), or did A33 take the v4 as it was?</span></li>
+    <li><strong>Update the BIOS first.</strong> The new chip did need one, a small update, before the board would take it.</li>
     <li><strong>Swapped on 23 September 2026.</strong> Same socket, same memory, same everything else.</li>
   </ul>
   <p class="cs__cap">AFTER: CONFIRM THE HOST SEES IT</p>
