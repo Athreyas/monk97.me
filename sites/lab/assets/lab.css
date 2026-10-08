@@ -381,6 +381,28 @@ kbd {
 
 .foot-note { margin-top: 30px; }
 
+/* ── architecture: hand-drawn svg, coloured only through the tokens ── */
+
+.arch { margin-top: 34px; display: grid; gap: 18px; }
+.arch__lede { max-width: var(--measure); }
+.arch__fig { display: grid; gap: 8px; min-width: 0; }
+.arch__scroll { overflow-x: auto; }
+.arch__scroll svg { display: block; width: 100%; min-width: 560px; height: auto; color: var(--ink); font-family: var(--font-mono); }
+.arch__cap { color: var(--ink-soft); font-size: 11px; line-height: 1.6; }
+.arch__zone { fill: none; stroke: var(--line); }
+.arch__box { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1; }
+.arch__box--hot { fill: var(--accent-dim); stroke: var(--accent); }
+.arch__z { font-size: 8.5px; letter-spacing: 0.16em; fill: var(--ink-soft); }
+.arch__t { font-size: 10.5px; fill: var(--ink); }
+.arch__s { font-size: 9.5px; fill: var(--ink-soft); }
+.arch__a { font-size: 9.5px; fill: var(--accent); }
+.arch__ln { stroke: var(--ink-soft); stroke-width: 1.1; fill: none; }
+.arch__ln-a { stroke: var(--accent); stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; }
+.arch__bus { stroke: var(--ink-soft); stroke-width: 3; }
+.arch__bridge { stroke: var(--accent); stroke-width: 3; }
+.arch__ah { fill: var(--ink-soft); }
+.arch__ah-a { fill: var(--accent); }
+
 @media (max-width: 460px) {
   .beats { width: 130px; height: 9px; }
   .incrow { flex-wrap: wrap; gap: 4px 10px; }
