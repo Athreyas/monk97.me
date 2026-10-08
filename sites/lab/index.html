@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
 <script src="/assets/theme.js?v=390ff9fc"></script>
-<link rel="stylesheet" href="/assets/lab.css?v=f54884ef">
+<link rel="stylesheet" href="/assets/lab.css?v=665d534a">
 </head>
 
 <body>
@@ -73,15 +73,6 @@
   <div class="host" data-host hidden id="vitals" data-toc="VITALS"></div>
 
   <div class="vitals" data-vitals id="overview" data-toc="OVERVIEW"></div>
-
-  <section class="cats" data-cats id="services" data-toc="SERVICE HEALTH">
-    <p class="skel">loading service health…</p>
-  </section>
-
-  <section class="inc" data-inc hidden id="incidents" data-toc="INCIDENTS">
-    <h2 class="sec">INCIDENTS · LAST 90 DAYS</h2>
-    <div data-inc-list></div>
-  </section>
 
   <section class="arch" id="architecture" data-toc="ARCHITECTURE">
     <h2 class="sec">ARCHITECTURE · ROLES, NOT ADDRESSES</h2>
@@ -230,6 +221,26 @@
     </figure>
   </section>
 
+  <details class="fold" id="services" data-toc="SERVICE HEALTH">
+    <summary class="fold__sum">
+      <span class="fold__head">
+        <span class="sec fold__title">SERVICE HEALTH</span>
+        <span class="fold__line" data-fold-line>loading service health…</span>
+      </span>
+      <span class="fold__dots" data-fold-dots aria-hidden="true"></span>
+      <span class="fold__cue" aria-hidden="true"><span class="fold__more">show</span><span class="fold__less">hide</span></span>
+    </summary>
+    <section class="cats" data-cats>
+      <p class="skel">loading service health…</p>
+    </section>
+  </details>
+
+  <section class="inc" data-inc hidden id="incidents" data-toc="INCIDENTS">
+    <h2 class="sec">INCIDENTS · LAST 90 DAYS</h2>
+    <div data-inc-list></div>
+  </section>
+
+
   <p class="body--soft foot-note">
     Uptime is measured, not asserted. Incidents are listed because a status
     page that has never had one is not a status page.
@@ -254,10 +265,10 @@
   </div>
 </div>
 
-<script src="/assets/status.js?v=33ee5f19" defer></script>
+<script src="/assets/status.js?v=aca7d8e6" defer></script>
 <script src="/assets/sealed.js?v=29dae2f2" defer></script>
 <script src="/assets/lab.js?v=cd81cb22" defer></script>
-<script src="/assets/toc.js?v=2fffd5f0" defer></script>
+<script src="/assets/toc.js?v=2730e92a" defer></script>
 <script src="/assets/site.js?v=478a394b" defer></script>
 </body>
 </html>

@@ -311,6 +311,27 @@ kbd {
 /* ── categories ─────────────────────────────────────────────── */
 
 .cats { margin-top: 36px; }
+
+/* service health, folded: one line with a dot per category until opened */
+.fold { margin-top: 38px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.fold__sum {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 16px; padding: 14px 0;
+}
+.fold__sum::-webkit-details-marker { display: none; }
+.fold__sum:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
+.fold__head { display: grid; gap: 3px; min-width: 0; }
+.fold__title { margin: 0; }
+.fold__line { font-size: 12px; color: var(--ink); }
+.fold__dots { display: flex; gap: 5px; margin-left: auto; flex: none; }
+.fold__cue { font-size: 10.5px; letter-spacing: 0.12em; color: var(--accent); flex: none; min-width: 44px; text-align: right; }
+.fold__cue::after { content: ' \25BE'; }
+.fold[open] .fold__cue::after { content: ' \25B4'; }
+.fold__less, .fold[open] .fold__more { display: none; }
+.fold[open] .fold__less { display: inline; }
+.fold__sum:hover .fold__cue { text-decoration: underline; text-underline-offset: 3px; }
+.fold .cats { margin-top: 0; padding-bottom: 10px; }
+@media (max-width: 460px) { .fold__dots { display: none; } }
 .skel { color: var(--ink-soft); font-size: 12px; }
 
 .cat { padding: 18px 0; border-top: 1px solid var(--line); }
