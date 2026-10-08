@@ -344,6 +344,33 @@
     (RENDER[v] || viewRows)(box, data);
   }
 
+  /* service health folds behind one line: closed, it still answers "is it
+     fine?"; the full breakdown is a click away */
+  var FOLD_KEY = 'monk97:labfold';
+  var FOLD_WORD = { operational: 'all operational', degraded: 'degraded', outage: 'outage' };
+  function foldSummary(d) {
+    var line = $('[data-fold-line]'), dots = $('[data-fold-dots]');
+    if (!line || !dots) return;
+    var s = d.summary;
+    line.textContent = s.services + ' services · ' + d.categories.length + ' categories · ' +
+      (FOLD_WORD[s.state] || s.state) + ' · ' + s.uptime.toFixed(2) + '% uptime';
+    dots.textContent = '';
+    d.categories.forEach(function (c) {
+      var dot = el('span', 'dot s-' + c.state);
+      dot.title = c.label + ': ' + c.state;
+      dots.appendChild(dot);
+    });
+  }
+
+  var fold = $('.fold');
+  if (fold) {
+    try { if (localStorage.getItem(FOLD_KEY) === 'open') fold.open = true; } catch (e) {}
+    if (location.hash === '#services') fold.open = true;
+    fold.addEventListener('toggle', function () {
+      try { localStorage.setItem(FOLD_KEY, fold.open ? 'open' : 'closed'); } catch (e) {}
+    });
+  }
+
   function render(d) {
     data = d;
     lastAt = new Date(d.generated_at);
@@ -354,6 +381,7 @@
     hostStats(d.host);
     hostSpec(d.spec);
     paint();
+    foldSummary(d);
     incidents(d.incidents);
     paintStat();
   }
@@ -389,7 +417,8 @@
   }
   if (viewBtn) {
     renderViewBtn();
-    viewBtn.addEventListener('click', function () { viewNext(); });
+    /* switching layout is pointless behind a closed fold, so open it */
+    viewBtn.addEventListener('click', function () { if (fold) fold.open = true; viewNext(); });
   }
 
   var rail = $('.rail');

@@ -78,6 +78,7 @@
         e.preventDefault();
         var el = targets[i];
         if (!el) return;
+        if (el.tagName === 'DETAILS') el.open = true;   /* a folded section opens when you jump to it */
         el.scrollIntoView({ block: 'start' });
         history.replaceState(null, '', '#' + el.id);
         mark(i);
