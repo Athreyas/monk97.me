@@ -9,15 +9,14 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Fraunces:ital,wght@0,400;0,500;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="/assets/site.css?v=dab01ab4">
 <script src="/assets/theme.js?v=390ff9fc"></script>
 </head>
 
-<body>
+<body class="card">
 
-
-<main>
+<main class="wrap">
 
   <header class="rail">
     <div class="rail__inner">
@@ -25,24 +24,35 @@
       <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
     </div>
   </header>
-  <section class="hero">
-    <div class="hero__inner">
-      <h1 class="wordmark">Nothing here.</h1>
-      <p class="hero__title">There are, in fairness, very few pages here at all.</p>
-      <p class="term">
-        <span class="term__prompt" aria-hidden="true">~</span><span>404 — no such file or directory</span><span class="term__cursor" aria-hidden="true"></span>
-      </p>
-    </div>
-  </section>
-</main>
 
-<footer class="foot">
-  <div class="foot__inner">
-    <a href="/">← monk97.me</a>
+  <p class="cmd">
+    <span class="cmd__prompt" aria-hidden="true">$</span><span
+      class="cmd__text">cd this-page</span><span
+      class="cmd__cursor" aria-hidden="true"></span>
+  </p>
+
+  <h1>Nothing here. <span class="ink-soft">404 — no such file or directory.</span></h1>
+
+  <div class="body">
+    <p>There are, in fairness, very few pages here at all.</p>
+  </div>
+
+  <nav class="quiet" aria-label="Elsewhere">
+    <a href="/">home</a>
+    <span aria-hidden="true">·</span>
+    <a href="/writing/">writing</a>
+    <span aria-hidden="true">·</span>
+    <a href="/work/">work</a>
+    <span aria-hidden="true">·</span>
+    <a href="/resume">résumé</a>
+  </nav>
+
+  <div class="rule rule--bottom">
+    <span>monk97.me</span>
     <span>404</span>
   </div>
-</footer>
 
+</main>
 
 <div class="console" aria-hidden="true">
   <div class="console__inner">
