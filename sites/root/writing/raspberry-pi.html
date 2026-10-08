@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>It started with a Raspberry Pi — Athreyas</title>
+<meta name="description" content="Why the home lab exists at all: Homebridge on a Raspberry Pi to bring everything into Apple Home, a Pi that could not keep up, and how one bigger machine grew a service at a time.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/raspberry-pi">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=ef78b26b">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">raspberry-pi</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">It started with a Raspberry Pi.</h1>
+  <p class="doc__role">Prologue · where it began</p>
+  <div class="cs__meta">
+    <span>the beginning</span>
+    <span>home lab series · prologue</span>
+  </div>
+
+  <p>
+    None of this started as a plan to build a lab. It started with the Home
+    app. I wanted the smart-home devices in the house, the ones that do
+    not speak Apple's HomeKit, to show up in the Home app next to everything
+    else, and the usual answer to that is <strong>Homebridge</strong> on a
+    Raspberry Pi.
+  </p>
+
+  <h2 class="doc__h" id="homebridge" data-toc>WHAT HOMEBRIDGE DOES</h2>
+  <p>
+    Homebridge is a small Node.js server that pretends to be a HomeKit
+    bridge. Plugins translate each non-HomeKit device into something the Home
+    app understands, and the Home app finds the bridge the way it finds any
+    accessory: by listening for it on the local network over mDNS (Bonjour).
+    That last detail matters later.
+  </p>
+  <p class="cs__cap">ON A MAC: IS ANY HOMEKIT BRIDGE ADVERTISING ITSELF?</p>
+  <pre class="cs__code"><span class="c"># HomeKit accessories and bridges announce _hap._tcp on the local network</span>
+dns-sd -B _hap._tcp</pre>
+
+  <h2 class="doc__h" id="pi" data-toc>THE PI</h2>
+  <p>
+    The Pi was the obvious first home for it: small, silent, cheap to leave
+    on. It was a regular Raspberry Pi with the bare minimum of memory, 1 or
+    2 GB, and that was the problem. Homebridge, its plugins and the operating
+    system did not fit comfortably, so it kept falling over. Getting everything reliably
+    into the Apple ecosystem was not happening, and a Pi that could not hold
+    one service was never going to hold what I kept wanting to add next.
+  </p>
+
+  <h2 class="doc__h" id="one-thing" data-toc>ONE THING, THEN THE NEXT</h2>
+  <p>
+    So Homebridge moved to a bigger machine, a Dell Precision tower running
+    Ubuntu and Docker. And once there was a real machine on the network, it
+    did not stay one service for long:
+  </p>
+  <ul>
+    <li><strong>Homebridge</strong>, the reason for the machine, in a container.</li>
+    <li><strong>A reverse proxy</strong>, so each service had a name instead of a port.</li>
+    <li><strong>Monitoring</strong>, because once several things run you need to know which one stopped.</li>
+    <li><strong>A Jupyter notebook</strong> on the GPU, for coursework and experiments.</li>
+    <li>Then local language models, a documentation site, a remote browser, and more.</li>
+  </ul>
+  <p>
+    Nobody designed that list. Each item was the obvious next step from the
+    one before, which is how most home labs, and most production systems,
+    actually get built.
+  </p>
+
+  <h2 class="doc__h" id="mdns" data-toc>WHY THE CONTAINERS NEEDED REAL ADDRESSES</h2>
+  <p>
+    The mDNS detail is the thread into <a href="/writing/docker-macvlan">part 1</a>.
+    Multicast discovery does not cross Docker's default bridge network, so a
+    Homebridge container behind it is invisible to the Home app. The standard
+    fix is host networking; the lab went further and gave every container its
+    own address on the LAN with macvlan. To this day Homebridge runs in its own
+    guest with a real network presence, because HomeKit will not have it any
+    other way.
+  </p>
+  <p class="cs__cap">HOMEBRIDGE IN DOCKER, VISIBLE TO THE HOME APP</p>
+  <pre class="cs__code"><span class="c"># simplest: share the host's network, so mDNS just works</span>
+docker run -d --name homebridge --restart unless-stopped \
+  --network host \
+  -v ~/Docker/homebridge:/homebridge \
+  homebridge/homebridge:latest
+
+<span class="c"># the web UI is then on port 8581 of the host</span></pre>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p class="cs__cap">PROMPT: WHY WON&#x27;T MY HOMEBRIDGE SHOW UP IN APPLE HOME?</p>
+  <pre class="cs__prompt">My Homebridge bridge does not appear in, or keeps dropping out of, the Apple Home app. Diagnose it without changing anything yet.
+
+- Where Homebridge runs (Pi, Docker, VM, LXC) and its network mode. If it is in Docker, is it on the default bridge network?
+- Whether it is advertising _hap._tcp: check from a Mac with dns-sd -B _hap._tcp, and from the host with avahi-browse -rt _hap._tcp.
+- Whether multicast can cross between the bridge and my Apple devices: separate Wi-Fi networks or VLANs, client isolation, or mDNS settings on the router.
+- The Homebridge log around the last pairing attempt.
+Tell me the single most likely cause first, with the evidence for it.</pre>
+
+  <h2 class="doc__h" id="series">THE SERIES</h2>
+  <ol class="series">
+    <li><span aria-current="page">It started with a Raspberry Pi</span></li>
+    <li><a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network</a></li>
+    <li><a href="/writing/proxmox">Moving to Proxmox, one service per container</a></li>
+    <li><a href="/writing/cpu-upgrade">Four cores to sixteen</a></li>
+    <li><a href="/writing/backups">Sixteen days of backups that weren&#x27;t</a></li>
+    <li><a href="/writing/gpu">Choosing a 70-watt GPU</a></li>
+    <li><a href="/writing/ollama">Twelve cores and most of a GPU</a></li>
+    <li><a href="/writing/with-claude">Building the lab with an agent in the loop</a></li>
+  </ol>
+
+  <div class="doc__foot">
+    <a href="/writing/">← writing</a>
+    <a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network →</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2730e92a" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>

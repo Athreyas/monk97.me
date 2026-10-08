@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Moving to Proxmox, one service per container — Athreyas</title>
+<meta name="description" content="Replacing a Docker host with Proxmox VE: LXC containers instead of macvlan, a bridge instead of a shim, and keeping the old install intact until the new one proved itself.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/proxmox">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=ef78b26b">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">proxmox</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">Moving to Proxmox, one service per container.</h1>
+  <p class="doc__role">Part 2 · the hypervisor</p>
+  <div class="cs__meta">
+    <span>2026-09</span>
+    <span>home lab series · part 2 of 7</span>
+  </div>
+
+  <p>
+    The audit at the end of <a href="/writing/docker-macvlan">part 1</a> came
+    down to one recommendation: stop treating the machine as a desktop that
+    happens to run containers, and make it a hypervisor. Each service becomes
+    its own guest, with its own snapshots, its own backups and its own
+    resource limits, and the host underneath gets boring. The tool for that is
+    <strong>Proxmox VE</strong>.
+  </p>
+
+  <h2 class="doc__h" id="why" data-toc>WHY PROXMOX, AND WHY LXC</h2>
+  <p>
+    Proxmox runs two kinds of guest: full virtual machines under KVM, and LXC
+    system containers that share the host's kernel. With four cores at the
+    time, the choice was easy. <strong>LXC first</strong>: a container costs
+    almost nothing at idle, starts in seconds, and still gets its own
+    filesystem, network identity, CPU and memory limits, snapshots and
+    backups. A VM is kept for the one thing that genuinely needs its own
+    kernel, a full Linux desktop.
+  </p>
+  <p>
+    The GPU decision followed from the same reasoning. Passing a card through
+    to a VM with VFIO hands the whole device to one guest. Sharing the host's
+    driver into a container lets the host keep the card and any container use
+    it. That is <a href="/writing/ollama">part 6</a>.
+  </p>
+
+  <h2 class="doc__h" id="install" data-toc>INSTALLING IT</h2>
+  <p>
+    Proxmox VE installs from a USB stick. This machine has no remote
+    management card, so the install needed a monitor and keyboard attached;
+    after that, everything is done from a browser or SSH.
+  </p>
+  <p class="cs__cap">ON A MAC: WRITE THE INSTALLER TO A USB STICK</p>
+  <pre class="cs__code"><span class="c"># find the stick (check the size; the wrong disk here is a bad day)</span>
+diskutil list external
+
+diskutil unmountDisk /dev/diskN
+sudo dd if=proxmox-ve_9.x.iso of=/dev/rdiskN bs=4m status=progress
+diskutil eject /dev/diskN</pre>
+  <p>
+    In the installer: target the SATA SSD, ext4 (the installer then puts
+    guests on LVM-thin), a static address, the gateway, and the management
+    interface. On first boot, switch from the enterprise repository, which
+    needs a subscription, to the no-subscription one. In the web UI that is
+    <strong>node → Updates → Repositories</strong>: disable the two
+    enterprise entries and add <em>No-Subscription</em>. Then:
+  </p>
+  <p class="cs__cap">ON THE NEW HOST: FIRST BOOT</p>
+  <pre class="cs__code">apt update &amp;&amp; apt full-upgrade -y
+pveversion                    # pve-manager/9.x
+
+<span class="c"># remote hands before anything else: Tailscale on the host</span>
+curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up --ssh</pre>
+
+  <h2 class="doc__h" id="safe-move" data-toc>A MIGRATION THAT COULD BE UNDONE</h2>
+  <p>
+    The rule for the move was that nothing gets destroyed until its
+    replacement has proved itself. The machine had two drives, so Proxmox went
+    onto the 512 GB SATA SSD, and the 1 TB NVMe holding the whole Ubuntu
+    install was left exactly as it was and mounted read-only:
+  </p>
+  <p class="cs__cap">ON THE NEW PROXMOX HOST: KEEP THE OLD SYSTEM, READ-ONLY</p>
+  <pre class="cs__code">mkdir -p /mnt/oldroot
+mount -o ro /dev/nvme0n1p2 /mnt/oldroot
+ls /mnt/oldroot/home/&lt;user&gt;/Docker      # every compose project, intact
+
+<span class="c"># survive reboots, and do not hang the boot if the disk is missing</span>
+echo '/dev/nvme0n1p2 /mnt/oldroot ext4 ro,nofail 0 2' &gt;&gt; /etc/fstab</pre>
+  <p>
+    At that point Proxmox was running and every byte of the old system was
+    still on disk and readable, so services could move at whatever pace suited.
+  </p>
+  <p>
+    The runbook's one red warning was for the installer itself: it lists both
+    disks, so check the <em>model string</em> before confirming, not the device
+    name. Choosing the wrong one of two disks is the one mistake in this whole
+    project that could not have been undone.
+  </p>
+
+  <h2 class="doc__h" id="network" data-toc>A BRIDGE INSTEAD OF A SHIM</h2>
+  <p>
+    The single biggest simplification was the network. Proxmox puts a Linux
+    bridge, <code>vmbr0</code>, on the physical interface, and every guest
+    attaches to it as a full member of the LAN. Guests get real addresses, the
+    host can talk to all of them, and the macvlan shim and its hand-kept
+    routes from part 1 simply disappear.
+  </p>
+  <p class="cs__cap">/ETC/NETWORK/INTERFACES ON THE HOST</p>
+  <pre class="cs__code">auto vmbr0
+iface vmbr0 inet static
+    address 192.168.1.10/24
+    gateway 192.168.1.1
+    bridge-ports nic1
+    bridge-stp off
+    bridge-fd 0</pre>
+  <p>
+    The interface is <code>nic1</code>, not the <code>enp11s0</code> of the
+    Ubuntu days: on this host Proxmox names the ports <code>nic0</code> and
+    <code>nic1</code>. That detail caused the lab's one real outage.
+    After the machine was physically moved in September, the cable went back
+    into the port that is now <code>nic0</code>, and the bridge, which is on
+    <code>nic1</code>, had no link. Nothing was wrong with the configuration;
+    the cable was in the wrong hole.
+  </p>
+
+  <h2 class="doc__h" id="guests" data-toc>ONE SERVICE PER GUEST</h2>
+  <p>
+    A container is one command. This is the real one used for the file browser
+    that was added later, with the address changed:
+  </p>
+  <p class="cs__cap">CREATE AN UNPRIVILEGED DEBIAN 13 CONTAINER</p>
+  <pre class="cs__code">pveam update
+pveam download local debian-13-standard_13.6-1_amd64.tar.zst
+
+pct create 110 local:vztmpl/debian-13-standard_13.6-1_amd64.tar.zst \
+  --hostname filestash \
+  --unprivileged 1 \
+  --features nesting=1,keyctl=1 \
+  --cores 4 --memory 2048 --swap 512 \
+  --rootfs local-lvm:8 \
+  --net0 name=eth0,bridge=vmbr0,ip=192.168.1.50/24,gw=192.168.1.1 \
+  --nameserver 192.168.1.53 \
+  --onboot 1
+
+pct start 110
+pct enter 110</pre>
+  <ul>
+    <li><strong><code>--unprivileged 1</code></strong>: root inside the container is an unprivileged user on the host. It is the default for a reason.</li>
+    <li><strong><code>nesting=1,keyctl=1</code></strong>: needed for Docker inside the container. The plan said no Docker in LXC; in practice three guests run Docker, because that is how those apps ship.</li>
+    <li><strong><code>--nameserver</code></strong>: set it explicitly. Without it, <code>pct create</code> copies the host's resolver, which on a host running Tailscale is Tailscale's resolver, and the guest inherits a DNS setup it should not have.</li>
+  </ul>
+  <p>Eleven containers and one VM run there now:</p>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>GUEST</th><th>KIND</th><th>ROLE</th></tr></thead>
+      <tbody>
+        <tr><td>tailscale-gw</td><td>LXC</td><td>remote access: a Tailscale subnet router for the LAN</td></tr>
+        <tr><td>dns</td><td>LXC</td><td>AdGuard Home, the network's DNS</td></tr>
+        <tr><td>edge-proxy</td><td>LXC</td><td>Nginx Proxy Manager, TLS and host routing</td></tr>
+        <tr><td>pbs</td><td>LXC</td><td>Proxmox Backup Server (<a href="/writing/backups">part 4</a>)</td></tr>
+        <tr><td>services</td><td>LXC</td><td>Uptime Kuma, log viewer, small tools, the app portal</td></tr>
+        <tr><td>homebridge</td><td>LXC</td><td>home automation bridge</td></tr>
+        <tr><td>labdocs</td><td>LXC</td><td>the lab's own documentation</td></tr>
+        <tr><td>gpu-workbench</td><td>LXC</td><td>the GPU, Ollama and notebooks (<a href="/writing/ollama">part 6</a>)</td></tr>
+        <tr><td>browser</td><td>LXC</td><td>a browser for automation</td></tr>
+        <tr><td>filestash</td><td>LXC</td><td>a read-only web file browser</td></tr>
+        <tr><td>authentik</td><td>LXC</td><td>single sign-on for the apps</td></tr>
+        <tr><td>omarchy-desktop</td><td>VM</td><td>a full Linux desktop, reachable remotely</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="doc__h" id="moving" data-toc>MOVING A SERVICE ACROSS</h2>
+  <p>
+    Because the old disk was mounted on the new host, moving a Docker service
+    was a copy, not a download. The pattern, for any compose project:
+  </p>
+  <p class="cs__cap">ON THE HOST: COPY A COMPOSE PROJECT INTO A CONTAINER</p>
+  <pre class="cs__code"><span class="c"># stream the project folder from the old disk straight into container 104</span>
+tar -C /mnt/oldroot/home/&lt;user&gt;/Docker -cf - uptime-kuma \
+  | pct exec 104 -- tar -C /opt -xf -
+
+<span class="c"># Docker inside the container (it was created with nesting=1,keyctl=1)</span>
+pct exec 104 -- bash -c 'apt update &amp;&amp; apt install -y docker.io docker-compose-plugin'
+pct exec 104 -- bash -c 'cd /opt/uptime-kuma &amp;&amp; docker compose up -d'</pre>
+  <p>
+    The compose file keeps working as it was with one change: its macvlan
+    network block goes. Inside the container, Docker's ordinary bridge
+    network is fine, because the <em>container</em> now has the LAN address.
+  </p>
+  <p>
+    Data that should stay on the host rather than inside a guest is shared
+    in with a bind mount. The file browser, for example, sees a folder on the
+    host's data disk, read-only:
+  </p>
+  <p class="cs__cap">ON THE HOST: SHARE A HOST FOLDER INTO A CONTAINER, READ-ONLY</p>
+  <pre class="cs__code">pct set 110 -mp0 /mnt/data/shared,mp=/data,ro=1
+pct reboot 110</pre>
+
+  <h2 class="doc__h" id="snapshots" data-toc>THE PAYOFF: SNAPSHOTS</h2>
+  <p>
+    The reason for all of this, in two commands. Before any risky change to a
+    guest, a snapshot; if the change goes wrong, roll back to it in seconds.
+  </p>
+  <p class="cs__cap">ON THE HOST</p>
+  <pre class="cs__code">pct snapshot 104 before-upgrade --description "before the Kuma upgrade"
+pct listsnapshot 104
+
+<span class="c"># it went wrong</span>
+pct rollback 104 before-upgrade
+
+<span class="c"># it went fine</span>
+pct delsnapshot 104 before-upgrade</pre>
+  <p>
+    Snapshots are not backups: they live on the same disk as the guest.
+    Backups are <a href="/writing/backups">part 4</a>.
+  </p>
+
+  <h2 class="doc__h" id="remote" data-toc>REMOTE ACCESS, AS A GUEST</h2>
+  <p>
+    Tailscale on the host is the way in if something breaks. Day to day, one
+    small container is a Tailscale <strong>subnet router</strong>: any device
+    on my tailnet reaches the whole LAN through it, with nothing exposed to
+    the internet. An unprivileged container needs the TUN device passed in:
+  </p>
+  <p class="cs__cap">/ETC/PVE/LXC/100.CONF (ADDED LINES)</p>
+  <pre class="cs__code">lxc.cgroup2.devices.allow: c 10:200 rwm
+lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file</pre>
+  <p class="cs__cap">INSIDE THE CONTAINER</p>
+  <pre class="cs__code">echo 'net.ipv4.ip_forward = 1' &gt; /etc/sysctl.d/99-tailscale.conf
+sysctl -p /etc/sysctl.d/99-tailscale.conf
+
+curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up --advertise-routes=192.168.1.0/24
+<span class="c"># then approve the route in the Tailscale admin console</span></pre>
+
+  <h2 class="doc__h" id="dns" data-toc>DNS, MOVED TWICE</h2>
+  <p>
+    DNS left the host along with everything else: AdGuard Home in its own
+    container answers for the network, and the reverse proxy is its own
+    container behind it. The private <code>.lab</code> domain from part 1 was
+    later retired altogether. A wildcard record for the lab's subdomain now
+    lives in public DNS, DNS-only and pointing at the proxy's private address.
+    It resolves everywhere and connects only from inside the network or over
+    Tailscale, and a wildcard Let's Encrypt certificate issued by DNS
+    challenge means every service gets real TLS with no per-device resolver
+    files.
+  </p>
+
+  <h2 class="doc__h" id="vs-plan" data-toc>PLAN VERSUS WHAT WAS BUILT</h2>
+  <ul>
+    <li><strong>Storage:</strong> the plan said ZFS. Guests actually live on LVM-thin on the SATA SSD, which is the installer's default and was enough for a single disk.</li>
+    <li><strong>Docker in LXC:</strong> planned out, used anyway where it was the sane way to run an app.</li>
+    <li><strong>A dev-stack VM:</strong> planned, never built. The side project it was for did not need to come along.</li>
+    <li><strong>Addresses:</strong> the plan's address map changed once in contact with reality, when a container landed on an address another project had already claimed.</li>
+  </ul>
+  <p>
+    Proxmox went on in September 2026 and, apart from that misplaced cable, has stayed up since. The old Ubuntu disk, still mounted, ended up
+    earning its keep as fast storage for model files. The whole result is drawn
+    on one page in <a href="/writing/architecture">the lab, as built</a>. The next limit was not
+    isolation but compute: twelve guests on four cores. That is
+    <a href="/writing/cpu-upgrade">part 3</a>.
+  </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p>
+    The migration plan came out of a conversation like this one. Point an
+    agent with shell access at your own Docker host and give it:
+  </p>
+  <p class="cs__cap">PROMPT: PLAN A DOCKER-TO-PROXMOX MIGRATION</p>
+  <pre class="cs__prompt">I want to move this Docker host to Proxmox VE, one service per LXC container. Do not change anything yet.
+
+1. Inventory the host: hardware (dmidecode, lspci, lsblk), every container with its image, volumes, networks, fixed IPs and restart policy, and every compose project on disk.
+2. For each service, say whether it should be an LXC container, a VM, or retired, and why.
+3. Propose a disk layout that keeps the current install intact and readable until the migration is finished.
+4. Propose an IP plan, and list every place an old address is referenced: proxy targets, DNS records, app configs and app databases.
+5. Write a phased runbook with a rollback for every phase, and the backup to take before phase one.
+Show me the commands you ran and their output, not just conclusions.</pre>
+
+  <h2 class="doc__h" id="series">THE SERIES</h2>
+  <ol class="series">
+    <li><a href="/writing/raspberry-pi">It started with a Raspberry Pi</a></li>
+    <li><a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network</a></li>
+    <li><span aria-current="page">Moving to Proxmox, one service per container</span></li>
+    <li><a href="/writing/cpu-upgrade">Four cores to sixteen</a></li>
+    <li><a href="/writing/backups">Sixteen days of backups that weren&#x27;t</a></li>
+    <li><a href="/writing/gpu">Choosing a 70-watt GPU</a></li>
+    <li><a href="/writing/ollama">Twelve cores and most of a GPU</a></li>
+    <li><a href="/writing/with-claude">Building the lab with an agent in the loop</a></li>
+  </ol>
+
+  <div class="doc__foot">
+    <a href="/writing/docker-macvlan">← One Ubuntu box and a macvlan network</a>
+    <a href="/writing/cpu-upgrade">Four cores to sixteen →</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2730e92a" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>

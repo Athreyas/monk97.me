@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Twelve cores and most of a GPU — Athreyas</title>
+<meta name="description" content="Passing a GPU into an unprivileged LXC container and tuning Ollama in it: persistence mode, twelve cores, models on fast storage, and the tokens per second each change bought.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/ollama">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=ef78b26b">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">ollama</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">Twelve cores and most of a GPU.</h1>
+  <p class="doc__role">Part 6 · local models</p>
+  <div class="cs__meta">
+    <span>2026-10-08</span>
+    <span>home lab series · part 6 of 7</span>
+  </div>
+
+  <p>
+    With a 16 GB card in the host (<a href="/writing/gpu">part 5</a>) and
+    sixteen cores under it (<a href="/writing/cpu-upgrade">part 3</a>), the
+    last step was to let the AI container actually use them. On 8 October 2026
+    a day of tuning took a 35-billion-parameter model from 15 to about
+    36 tokens per second and made a 20B model the everyday default at 60.
+    Here is every change, in the order it was made, with what each one bought.
+  </p>
+
+  <h2 class="doc__h" id="passthrough" data-toc>A GPU INSIDE AN LXC CONTAINER</h2>
+  <p>
+    The host owns the card and runs the driver. An unprivileged container
+    borrows it by being allowed to open the host's NVIDIA device files, which
+    are bind-mounted in. Two kinds of line in the container's config do it:
+    permission to use the devices, and the device files themselves.
+  </p>
+  <p class="cs__cap">ON THE HOST: FIND THE DEVICE NUMBERS</p>
+  <pre class="cs__code">ls -l /dev/nvidia*
+<span class="c"># typical output; note the two major numbers</span>
+<span class="c"># crw-rw-rw- 1 root root 195,   0 ... /dev/nvidia0</span>
+<span class="c"># crw-rw-rw- 1 root root 195, 255 ... /dev/nvidiactl</span>
+<span class="c"># crw-rw-rw- 1 root root 510,   0 ... /dev/nvidia-uvm      &lt;- this major varies</span></pre>
+  <p class="cs__cap">/ETC/PVE/LXC/107.CONF (ADDED LINES)</p>
+  <pre class="cs__code">lxc.cgroup2.devices.allow: c 195:* rwm
+lxc.cgroup2.devices.allow: c 510:* rwm
+lxc.mount.entry: /dev/nvidia0 dev/nvidia0 none bind,optional,create=file
+lxc.mount.entry: /dev/nvidiactl dev/nvidiactl none bind,optional,create=file
+lxc.mount.entry: /dev/nvidia-uvm dev/nvidia-uvm none bind,optional,create=file
+lxc.mount.entry: /dev/nvidia-uvm-tools dev/nvidia-uvm-tools none bind,optional,create=file</pre>
+  <p>
+    Inside, the container needs the NVIDIA user-space libraries at exactly
+    the host's driver version, without a kernel module of its own, since it
+    shares the host's kernel. Docker in the container then reaches the card
+    through the NVIDIA container toolkit. If <code>nvidia-smi</code> works
+    inside the container, everything after this works.
+  </p>
+  <p>
+    <strong>One gotcha worth knowing:</strong> if the container starts before
+    the host has created the device files, the bind mounts create empty
+    placeholder files instead, and the GPU silently is not there.
+    <code>pct reboot 107</code> after the host is fully up fixes it.
+  </p>
+
+  <h2 class="doc__h" id="ollama" data-toc>OLLAMA, CONFIGURED FOR ONE CARD</h2>
+  <p class="cs__cap">INSIDE THE CONTAINER</p>
+  <pre class="cs__code">docker run -d --name ollama --restart unless-stopped \
+  --gpus all \
+  -p 11434:11434 \
+  -v /srv/ollama:/root/.ollama \
+  -e OLLAMA_HOST=0.0.0.0:11434 \
+  -e OLLAMA_KEEP_ALIVE=24h \
+  -e OLLAMA_MAX_LOADED_MODELS=2 \
+  -e OLLAMA_FLASH_ATTENTION=1 \
+  -e OLLAMA_KV_CACHE_TYPE=q8_0 \
+  -e OLLAMA_CONTEXT_LENGTH=16384 \
+  ollama/ollama:latest</pre>
+  <ul>
+    <li><strong><code>KEEP_ALIVE=24h</code></strong>: keep a model in memory once loaded, instead of unloading it after five idle minutes.</li>
+    <li><strong><code>MAX_LOADED_MODELS=2</code></strong>: room for an everyday model and one other, not a queue of them fighting over 16 GB.</li>
+    <li><strong><code>FLASH_ATTENTION</code> and a <code>q8_0</code> KV cache</strong>: the context cache takes roughly half the memory at negligible quality cost, which is what lets longer contexts stay on the GPU.</li>
+  </ul>
+
+  <h2 class="doc__h" id="tuning" data-toc>FOUR CHANGES, MEASURED</h2>
+  <p>
+    <strong>1. Persistence mode on the host.</strong> Small models felt slow
+    even though they fit easily. With persistence mode off, the driver
+    tears the GPU's state down when nothing is using it, and the next load
+    paid about 23 seconds to wake it. One service on the host fixes it:
+  </p>
+  <p class="cs__cap">ON THE HOST</p>
+  <pre class="cs__code">systemctl enable --now nvidia-persistenced
+nvidia-smi -q | grep -i 'persistence mode'     # Enabled</pre>
+  <p>
+    <strong>2. Threads that match the cores.</strong> The container had six
+    cores, but Ollama started sixteen CPU threads anyway. For a model entirely on the GPU that does not matter. For a model
+    that spills past VRAM, the part on the CPU slowed to 1–2 tokens per
+    second as sixteen threads fought over six cores. The fix is per model, a
+    small Modelfile variant; I name them <code>-lab</code>:
+  </p>
+  <p class="cs__cap">TWO -LAB VARIANTS</p>
+  <pre class="cs__code"><span class="c"># a 24B model that just fits: force every layer onto the GPU</span>
+cat &gt; Modelfile.mistral &lt;&lt;'EOF'
+FROM mistral-small3.2:24b
+PARAMETER num_gpu 99
+EOF
+ollama create mistral-small3.2:24b-lab -f Modelfile.mistral
+
+<span class="c"># a 35B mixture-of-experts model that cannot fit: pin the CPU threads</span>
+cat &gt; Modelfile.qwen &lt;&lt;'EOF'
+FROM qwen3.6:35b-a3b
+PARAMETER num_thread 5
+EOF
+ollama create qwen3.6:35b-a3b-lab -f Modelfile.qwen</pre>
+  <p>
+    Counter-intuitively, more threads were slower: five was the sweet spot
+    for the 35B model, even later with twelve cores to use.
+  </p>
+  <p>
+    <strong>3. Models off the backed-up disk.</strong> Model weights lived on
+    the container's root disk, which was 82% full and copied into every
+    nightly backup (the biggest contributor to <a href="/writing/backups">part 4</a>). They
+    moved to a directory on the host's NVMe drive, bind-mounted in:
+  </p>
+  <p class="cs__cap">ON THE HOST: A BIND MOUNT FOR MODELS</p>
+  <pre class="cs__code">mkdir -p /mnt/oldroot/ollama
+<span class="c"># unprivileged container: its root is uid 100000 on the host</span>
+chown 100000:100000 /mnt/oldroot/ollama
+pct set 107 -mp1 /mnt/oldroot/ollama,mp=/srv/ollama</pre>
+  <p>
+    Proxmox skips bind mounts when it backs a container up, so the container's
+    setup is still backed up and the re-downloadable weights are not. The root
+    disk went from 82% to 48%, and models load about three times faster from
+    NVMe.
+  </p>
+  <p>
+    <strong>4. Twelve cores.</strong> With the new CPU there was room to
+    double the container's share, live, with no restart:
+  </p>
+  <p class="cs__cap">ON THE HOST</p>
+  <pre class="cs__code">pct set 107 -cores 12</pre>
+  <p>
+    That is the change that took the 35B model from 15–19 tokens per second
+    to about 36. It runs 63% on the GPU; the rest is CPU, and the CPU now has
+    the room.
+  </p>
+
+  <h2 class="doc__h" id="results" data-toc>WHAT 16 GB RUNS NOW</h2>
+  <p>
+    Every number below came from Ollama itself. <code>--verbose</code> prints
+    the generation speed after each answer, and <code>ollama ps</code> shows how
+    much of a loaded model is on the GPU:
+  </p>
+  <p class="cs__cap">INSIDE THE CONTAINER: MEASURING A MODEL</p>
+  <pre class="cs__code"><span class="c"># run once to load it, then again for a warm number</span>
+docker exec -it ollama ollama run gpt-oss:20b-lab --verbose "Explain LVM-thin in three sentences."
+<span class="c"># ...</span>
+<span class="c"># eval rate:            NN.NN tokens/s     &lt;- the figure in the table</span>
+
+docker exec ollama ollama ps
+<span class="c"># output looks like:</span>
+<span class="c"># NAME               SIZE     PROCESSOR          CONTEXT</span>
+<span class="c"># qwen3.6:35b-a3b-lab  ...    37%/63% CPU/GPU    16384</span>
+
+nvidia-smi --query-gpu=memory.used,memory.total,utilization.gpu --format=csv</pre>
+  <p>Warm, one request at a time, after all four changes:</p>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>MODEL</th><th>TOKENS/S</th><th>NOTES</th></tr></thead>
+      <tbody>
+        <tr class="is-pick"><td>gpt-oss:20b-lab</td><td>60</td><td>100% GPU at a 32K context, reliable tool calls; the everyday default</td></tr>
+        <tr><td>qwen3.6:35b-a3b-lab</td><td>~36</td><td>mixture of experts, 63% GPU; was 15–19 on six cores</td></tr>
+        <tr><td>qwen3:14b</td><td>28</td><td>fits entirely</td></tr>
+        <tr><td>mistral-small3.2:24b-lab</td><td>18.5</td><td>100% GPU, image input works</td></tr>
+        <tr><td>qwen3.8:27b</td><td>4.5–6.6</td><td>dense, 72% GPU; too slow for daily use</td></tr>
+        <tr><td>llama3.2:3b</td><td>~99</td><td>small and quick</td></tr>
+        <tr><td>8B models</td><td>47–49</td><td>small and quick</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The pattern in that table is the lesson. A <strong>mixture-of-experts</strong>
+    model only activates a few billion parameters per token, so it tolerates
+    living partly on the CPU; a <strong>dense</strong> model of similar size
+    that spills does not. On a 16 GB card, the biggest useful model is not the
+    biggest that loads. Eight older models were deleted along the way.
+  </p>
+  <p>
+    Most of this was diagnosed in a conversation with an AI agent working on
+    the lab directly. How that worked, and where it went wrong, is
+    <a href="/writing/with-claude">part 7</a>.
+  </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p class="cs__cap">PROMPT: MY LOCAL MODELS FEEL SLOW</p>
+  <pre class="cs__prompt">My local models through Ollama feel slow. Find out why with measurements, and change nothing until I agree.
+
+- The GPU: model, VRAM, driver, persistence mode, and what else is using it.
+- The container or VM Ollama runs in: cores and memory it is given, and how many threads Ollama actually starts.
+- Ollama's settings (keep-alive, flash attention, KV cache type, context length, loaded-model limit) and where model files are stored.
+- For each model I use: size, how much is on the GPU (ollama ps), and warm tokens per second (ollama run --verbose), cold load time too.
+Then propose changes one at a time, each with the number you expect it to move, and re-measure after each one.</pre>
+
+  <h2 class="doc__h" id="series">THE SERIES</h2>
+  <ol class="series">
+    <li><a href="/writing/raspberry-pi">It started with a Raspberry Pi</a></li>
+    <li><a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network</a></li>
+    <li><a href="/writing/proxmox">Moving to Proxmox, one service per container</a></li>
+    <li><a href="/writing/cpu-upgrade">Four cores to sixteen</a></li>
+    <li><a href="/writing/backups">Sixteen days of backups that weren&#x27;t</a></li>
+    <li><a href="/writing/gpu">Choosing a 70-watt GPU</a></li>
+    <li><span aria-current="page">Twelve cores and most of a GPU</span></li>
+    <li><a href="/writing/with-claude">Building the lab with an agent in the loop</a></li>
+  </ol>
+
+  <div class="doc__foot">
+    <a href="/writing/gpu">← Choosing a 70-watt GPU</a>
+    <a href="/writing/with-claude">Building the lab with an agent in the loop →</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2730e92a" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>

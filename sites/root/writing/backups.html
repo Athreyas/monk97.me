@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Sixteen days of backups that weren&#x27;t — Athreyas</title>
+<meta name="description" content="Proxmox Backup Server on a NAS share: the job, the retention, the quota that silently stopped every backup for sixteen days, and the alert added so it cannot happen quietly again.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/backups">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=ef78b26b">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">backups</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">Sixteen days of backups that weren&#x27;t.</h1>
+  <p class="doc__role">Part 4 · Proxmox Backup Server</p>
+  <div class="cs__meta">
+    <span>2026-09-22 → 2026-10-07</span>
+    <span>home lab series · part 4 of 7</span>
+  </div>
+
+  <p>
+    The point of moving to Proxmox was that every service could be snapshotted
+    and backed up on its own. Proxmox Backup Server does that well:
+    incremental, deduplicated backups of every guest, every night. Then for
+    sixteen days it backed up nothing at all, and every dashboard in the lab
+    stayed green. This post is how it is set up, how it failed, and what
+    changed so it cannot fail quietly again.
+  </p>
+
+  <h2 class="doc__h" id="shape" data-toc>THE SHAPE OF IT</h2>
+  <pre class="cs__fig" aria-label="Proxmox host runs a nightly backup job into a PBS container whose datastore is an NFS share on the NAS">
+proxmox host                 pbs container                  NAS
+────────────                 ─────────────                  ───
+vzdump, 02:30 nightly  ──►   datastore           ──NFS──►   one share,
+ · every guest               · dedup into chunks             a quota on it
+ · snapshot mode             · prune, daily
+                             · garbage collection, weekly</pre>
+  <ul>
+    <li><strong>PBS runs as a container on the same Proxmox host.</strong> It is just another guest. That is fine for a home lab with the data on separate hardware; it would not be fine if the datastore lived on the same disks.</li>
+    <li><strong>The datastore is an NFS share on the NAS</strong>, exported to the host alone. The NAS enforces a quota on the share: first 100 GB, later raised to 400 GB.</li>
+    <li><strong>The host sees PBS as a storage target</strong>, so a backup job is a normal Proxmox job pointed at it.</li>
+  </ul>
+
+  <h2 class="doc__h" id="setup" data-toc>SETTING IT UP</h2>
+  <p>
+    Attaching PBS to Proxmox is one storage entry; Proxmox needs the server,
+    the datastore name, a user or API token, and the server's certificate
+    fingerprint. Everything below in angle brackets is yours to fill in.
+  </p>
+  <p class="cs__cap">ON THE PROXMOX HOST: ADD PBS AS STORAGE</p>
+  <pre class="cs__code">pvesm add pbs pbs-store \
+  --server &lt;pbs-address&gt; \
+  --datastore &lt;datastore&gt; \
+  --username '&lt;user&gt;@pbs!&lt;token-name&gt;' \
+  --password '&lt;token-secret&gt;' \
+  --fingerprint &lt;sha256-fingerprint&gt;
+
+pvesm status            # the new storage should say "active"</pre>
+  <p>
+    The nightly job lives in <code>/etc/pve/jobs.cfg</code> and backs up every
+    guest in snapshot mode, so nothing is stopped to back it up:
+  </p>
+  <p class="cs__cap">/ETC/PVE/JOBS.CFG (THE RELEVANT LINES)</p>
+  <pre class="cs__code">vzdump: backup-nightly
+    schedule 02:30
+    all 1
+    mode snapshot
+    storage pbs-store
+    prune-backups keep-daily=7,keep-weekly=4,keep-monthly=3</pre>
+  <p class="cs__cap">RUN ONE BY HAND</p>
+  <pre class="cs__code">vzdump --all 1 --storage pbs-store --mode snapshot --mailnotification failure
+<span class="c"># --mailnotification takes "always" or "failure"; "never" is rejected outright</span></pre>
+
+  <h2 class="doc__h" id="failure" data-toc>SIXTEEN QUIET DAYS</h2>
+  <p>
+    From 22 September to 7 October 2026, every nightly backup failed. The
+    share's quota had filled. The first guest of each run died with
+    <code>Disk quota exceeded</code> while writing a chunk, and every guest
+    after it with <code>syncfs: Input/output error</code>.
+  </p>
+  <p>
+    None of that reached a screen. PBS's own task list showed only
+    <code>connection error: not connected</code>, which sounds like a network
+    blip, not a full disk. The monitor for PBS stayed green the whole time,
+    because it checked that the server answered, and the server did answer.
+    <strong>A backup server being up and backups working are different facts</strong>,
+    and only the first one was being measured.
+  </p>
+  <p class="cs__cap">WHERE THE REAL ERROR WAS: THE PROXMOX SIDE OF THE TASK</p>
+  <pre class="cs__code">ls -t /var/log/pve/tasks/*/*vzdump* | head -3
+grep -h -E 'ERROR|quota|Input/output' $(ls -t /var/log/pve/tasks/*/*vzdump* | head -1)</pre>
+
+  <h2 class="doc__h" id="why-full" data-toc>WHY IT FILLED</h2>
+  <p>
+    Two things together. Until the fix, the PBS side had no prune job and no
+    garbage-collection schedule, so old chunks were never released. In PBS,
+    pruning only forgets snapshots; space comes back only when
+    <strong>garbage collection</strong> runs afterwards. And one guest was
+    enormous. The AI container held about 101 GB, nearly all of it things
+    that can be downloaded again: 56 GB of Docker images, 20 GB of build
+    cache and 30 GB of model weights, all copied into the backup every night.
+  </p>
+
+  <h2 class="doc__h" id="fix" data-toc>THE FIX</h2>
+  <p>
+    On the PBS side, a daily prune job and a weekly garbage collection. Both
+    are easy to set in the web UI; this is the same thing on the command line,
+    inside the PBS container:
+  </p>
+  <p class="cs__cap">IN THE PBS CONTAINER: PRUNE DAILY, COLLECT WEEKLY</p>
+  <pre class="cs__code">proxmox-backup-manager prune-job create daily-prune \
+  --store &lt;datastore&gt; --schedule daily \
+  --keep-last 3 --keep-daily 7 --keep-weekly 4 --keep-monthly 3
+
+proxmox-backup-manager datastore update &lt;datastore&gt; --gc-schedule 'sat 03:00'
+
+<span class="c"># and once now, to get the space back today</span>
+proxmox-backup-manager garbage-collection start &lt;datastore&gt;</pre>
+  <p>
+    Garbage collection only frees chunks roughly a day after they were last
+    referenced, so the space comes back the day after the prune, not
+    immediately. Once it did, the datastore went from full to about 25%
+    used. The model weights then moved out of the AI container onto a bind
+    mount from the host, which Proxmox's backups skip by design; that is in
+    <a href="/writing/ollama">part 6</a>.
+  </p>
+  <p>
+    Two small scars remain from writing while full: two backup groups were
+    created with empty <code>owner</code> files, which PBS rejects with
+    <code>parsing owner … not a valid user id</code> until the file holds the
+    right token name or the empty group is removed.
+  </p>
+
+  <h2 class="doc__h" id="alert" data-toc>MEASURING THE RIGHT THING</h2>
+  <p>
+    The lasting fix is that fullness is now a number someone sees. A root cron
+    line on the host dumps storage usage every five minutes, and the
+    unprivileged collector behind <a href="https://lab.monk97.me">the public
+    status page</a> reads it and publishes how full the backup store is, red
+    from 80%:
+  </p>
+  <p class="cs__cap">/ETC/CRON.D/LABPUSH-STORAGE ON THE HOST</p>
+  <pre class="cs__code">*/5 * * * * root pvesh get /nodes/$(hostname)/storage --output-format json &gt; /var/lib/labpush/storage.json.tmp &amp;&amp; mv /var/lib/labpush/storage.json.tmp /var/lib/labpush/storage.json</pre>
+  <p>
+    Writing to a temporary file and renaming it means the collector never
+    reads a half-written dump, and it ignores a dump older than thirty
+    minutes, so a dead cron job shows up as missing data rather than as a
+    frozen, healthy-looking number.
+  </p>
+
+  <h2 class="doc__h" id="check" data-toc>CHECKING IT YOURSELF</h2>
+  <p>
+    Three questions worth asking of any Proxmox backup setup, each one
+    command:
+  </p>
+  <p class="cs__cap">ON THE PROXMOX HOST</p>
+  <pre class="cs__code"><span class="c"># how full is the backup storage, really?</span>
+pvesm status
+
+<span class="c"># is any guest left out of every backup job?</span>
+pvesh get /cluster/backup-info/not-backed-up --output-format json
+
+<span class="c"># the newest backups on the store, with their times</span>
+pvesm list pbs-store --content backup | sort -k2 | tail -20
+
+<span class="c"># what did last night's job actually say?</span>
+grep -h -E 'INFO: (Finished|Backup job finished)|ERROR' \
+  $(ls -t /var/log/pve/tasks/*/*vzdump* | head -1)</pre>
+  <p class="cs__cap">IN THE PBS CONTAINER</p>
+  <pre class="cs__code">proxmox-backup-manager datastore list
+proxmox-backup-manager prune-job list
+proxmox-backup-manager garbage-collection status &lt;datastore&gt;</pre>
+
+  <h2 class="doc__h" id="still-open" data-toc>STILL OPEN</h2>
+  <ul>
+    <li><strong>No scheduled verify job yet.</strong> PBS can re-read every chunk on a schedule and check it against its checksum. It should, and it does not yet.</li>
+    <li><strong>No restore test yet.</strong> A backup that has never been restored is a hypothesis. The next step is to restore one guest to a spare ID and boot it.</li>
+  </ul>
+  <p class="cs__cap">BOTH, WHEN THEY ARE DONE</p>
+  <pre class="cs__code"><span class="c"># in PBS: re-read every chunk weekly and check it against its checksum</span>
+proxmox-backup-manager verify-job create weekly-verify \
+  --store &lt;datastore&gt; --schedule 'sun 04:00' --outdated-after 30
+
+<span class="c"># on the host: restore a container's latest backup to a spare ID, unstarted</span>
+pct restore 999 pbs-store:backup/ct/104/&lt;timestamp&gt; --storage local-lvm
+pct set 999 --delete net0     # same address as the original; start it with no network
+pct start 999 &amp;&amp; pct exec 999 -- systemctl is-system-running
+pct destroy 999 --purge</pre>
+  <p>
+    The broader lesson goes beyond backups: a monitor that checks a service
+    is up says nothing about whether the service is doing its job. The same
+    week, the GPU was replaced. That is <a href="/writing/gpu">part 5</a>.
+  </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p class="cs__cap">PROMPT: ARE MY BACKUPS ACTUALLY WORKING?</p>
+  <pre class="cs__prompt">Check whether my Proxmox backups are working, not whether the backup server is up. Read only.
+
+- For every guest: the time of its last successful backup, and the error from any failed run since. Read the Proxmox-side task logs, not just the PBS task list.
+- Datastore usage against its real limit, including any quota on the NFS or SMB share underneath it.
+- Whether prune, garbage collection and verify jobs exist, when they last ran, and what they freed.
+- Which guests are biggest in backups, and how much of that is re-downloadable (images, caches, model weights).
+- What would have alerted me if backups had stopped a week ago. If the answer is nothing, propose the smallest check that would.</pre>
+
+  <h2 class="doc__h" id="series">THE SERIES</h2>
+  <ol class="series">
+    <li><a href="/writing/raspberry-pi">It started with a Raspberry Pi</a></li>
+    <li><a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network</a></li>
+    <li><a href="/writing/proxmox">Moving to Proxmox, one service per container</a></li>
+    <li><a href="/writing/cpu-upgrade">Four cores to sixteen</a></li>
+    <li><span aria-current="page">Sixteen days of backups that weren&#x27;t</span></li>
+    <li><a href="/writing/gpu">Choosing a 70-watt GPU</a></li>
+    <li><a href="/writing/ollama">Twelve cores and most of a GPU</a></li>
+    <li><a href="/writing/with-claude">Building the lab with an agent in the loop</a></li>
+  </ol>
+
+  <div class="doc__foot">
+    <a href="/writing/cpu-upgrade">← Four cores to sixteen</a>
+    <a href="/writing/gpu">Choosing a 70-watt GPU →</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2730e92a" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>

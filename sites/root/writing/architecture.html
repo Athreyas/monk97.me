@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>The lab, as built — Athreyas</title>
+<meta name="description" content="A map of a one-host home lab on Proxmox: the network, guests by role, where data lives and what is backed up, and how a request reaches a service. Products and roles, no addresses.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/architecture">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=ef78b26b">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">architecture</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">The lab, as built.</h1>
+  <p class="doc__role">Reference · the map the series ends on</p>
+  <div class="cs__meta">
+    <span>as of 2026-10-08</span>
+    <a href="/writing/">the series behind it</a>
+  </div>
+
+  <p>
+    Where the <a href="/writing/">series</a> ends up: one Proxmox host on a
+    home network, twelve guests each doing one job, storage split by whether
+    losing it would matter, and two ways in. This page names the products and
+    the roles. Addresses, hostnames and guest IDs stay private, and so does
+    the list of what is still weak; that is a to-do list, not a map. The live
+    numbers for all of it are on <a href="https://lab.monk97.me">the status page</a>.
+  </p>
+
+  <h2 class="doc__h" id="shape" data-toc>THE SHAPE OF IT</h2>
+  <figure class="cs__map">
+    <div class="cs__map-scroll">
+    <svg viewBox="0 0 680 530" role="img" aria-label="Cloudflare and Tailscale on the internet, above a home network with a router, family devices and a Synology NAS. One Proxmox host joins the home network and bridges its guests onto it, grouped as edge and identity, apps and tools, files and desktop, and AI and backup. Guest disks on a SATA SSD are backed up nightly to the NAS; shared files and model weights on an NVMe drive are not.">
+      <defs>
+        <marker id="map-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="map__ah"/></marker>
+        <marker id="map-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="map__ah-a"/></marker>
+      </defs>
+
+      <rect x="0.5" y="0.5" width="679" height="60" rx="3" class="map__zone"/>
+      <text x="10" y="14" class="map__z">INTERNET</text>
+      <rect x="10" y="22" width="320" height="30" rx="2" class="map__box"/>
+      <text x="20" y="41" class="map__t">cloudflare · public dns, this site</text>
+      <rect x="350" y="22" width="320" height="30" rx="2" class="map__box"/>
+      <text x="360" y="41" class="map__t">tailscale · remote access</text>
+
+      <rect x="0.5" y="72.5" width="679" height="108" rx="3" class="map__zone"/>
+      <text x="10" y="88" class="map__z">HOME NETWORK</text>
+      <rect x="10" y="96" width="205" height="30" rx="2" class="map__box"/>
+      <text x="20" y="115" class="map__t">router</text>
+      <rect x="237" y="96" width="205" height="30" rx="2" class="map__box"/>
+      <text x="247" y="115" class="map__t">family devices, homekit</text>
+      <rect x="465" y="96" width="205" height="30" rx="2" class="map__box"/>
+      <text x="475" y="115" class="map__t">synology nas</text>
+      <line x1="170" y1="96" x2="170" y2="52" class="map__ln"/>
+      <text x="176" y="76" class="map__s">wan</text>
+      <line x1="10" y1="156" x2="670" y2="156" class="map__bus"/>
+      <line x1="112" y1="126" x2="112" y2="156" class="map__ln"/>
+      <line x1="340" y1="126" x2="340" y2="156" class="map__ln"/>
+      <line x1="567" y1="126" x2="567" y2="156" class="map__ln"/>
+
+      <rect x="0.5" y="192.5" width="679" height="335" rx="3" class="map__zone"/>
+      <text x="10" y="207" class="map__z">PROXMOX VE · ONE HOST</text>
+      <text x="10" y="222" class="map__s">dell precision 7810 · xeon e5-2697a v4, 16c/32t · 64 gb · rtx pro 2000 blackwell, 16 gb</text>
+      <line x1="645" y1="156" x2="645" y2="236" class="map__ln"/>
+      <line x1="10" y1="236" x2="670" y2="236" class="map__bridge"/>
+      <text x="636" y="231" class="map__a" text-anchor="end">vmbr0 bridge</text>
+
+      <text x="10" y="256" class="map__z">EDGE &amp; IDENTITY</text>
+      <text x="177" y="256" class="map__z">APPS &amp; TOOLS</text>
+      <text x="344" y="256" class="map__z">FILES &amp; DESKTOP</text>
+      <text x="511" y="256" class="map__z">AI &amp; BACKUP</text>
+
+      <rect x="10" y="264" width="159" height="36" rx="2" class="map__box"/>
+      <text x="18" y="279" class="map__t">tailscale</text><text x="18" y="293" class="map__s">subnet router</text>
+      <rect x="10" y="306" width="159" height="36" rx="2" class="map__box"/>
+      <text x="18" y="321" class="map__t">adguard home</text><text x="18" y="335" class="map__s">dns</text>
+      <rect x="10" y="348" width="159" height="36" rx="2" class="map__box"/>
+      <text x="18" y="363" class="map__t">nginx proxy manager</text><text x="18" y="377" class="map__s">tls, routes by name</text>
+      <rect x="10" y="390" width="159" height="36" rx="2" class="map__box"/>
+      <text x="18" y="405" class="map__t">authentik</text><text x="18" y="419" class="map__s">single sign-on</text>
+
+      <rect x="177" y="264" width="159" height="36" rx="2" class="map__box"/>
+      <text x="185" y="279" class="map__t">uptime kuma</text><text x="185" y="293" class="map__s">+ netdata, logs, portal</text>
+      <rect x="177" y="306" width="159" height="36" rx="2" class="map__box"/>
+      <text x="185" y="321" class="map__t">homebridge</text><text x="185" y="335" class="map__s">homekit bridge</text>
+      <rect x="177" y="348" width="159" height="36" rx="2" class="map__box"/>
+      <text x="185" y="363" class="map__t">mkdocs</text><text x="185" y="377" class="map__s">lab documentation</text>
+      <rect x="177" y="390" width="159" height="36" rx="2" class="map__box"/>
+      <text x="185" y="405" class="map__t">browser</text><text x="185" y="419" class="map__s">isolated, remote</text>
+
+      <rect x="344" y="264" width="159" height="36" rx="2" class="map__box"/>
+      <text x="352" y="279" class="map__t">linux desktop</text><text x="352" y="293" class="map__s">the one vm · novnc</text>
+      <rect x="344" y="306" width="159" height="36" rx="2" class="map__box"/>
+      <text x="352" y="321" class="map__t">filestash</text><text x="352" y="335" class="map__s">files, read-only</text>
+
+      <rect x="511" y="264" width="159" height="36" rx="2" class="map__box map__box--hot"/>
+      <text x="519" y="279" class="map__t">gpu workbench</text><text x="519" y="293" class="map__s">ollama · webui · jupyter</text>
+      <rect x="511" y="306" width="159" height="36" rx="2" class="map__box"/>
+      <text x="519" y="321" class="map__t">backup server</text><text x="519" y="335" class="map__s">proxmox backup server</text>
+
+      <text x="10" y="452" class="map__z">STORAGE ON THE HOST, AND OFF IT</text>
+      <rect x="10" y="460" width="326" height="58" rx="2" class="map__box"/>
+      <text x="20" y="477" class="map__t">sata ssd · lvm-thin</text>
+      <text x="20" y="492" class="map__s">every guest's own disk</text>
+      <text x="20" y="507" class="map__s">backed up nightly</text>
+      <rect x="344" y="460" width="159" height="58" rx="2" class="map__box"/>
+      <text x="352" y="477" class="map__t">nvme</text>
+      <text x="352" y="492" class="map__s">shared files, models</text>
+      <text x="352" y="507" class="map__a">not backed up</text>
+      <rect x="511" y="460" width="159" height="58" rx="2" class="map__box"/>
+      <text x="519" y="477" class="map__t">nas share · nfs</text>
+      <text x="519" y="492" class="map__s">backup datastore</text>
+      <text x="519" y="507" class="map__s">deduplicated</text>
+
+      <line x1="423" y1="342" x2="423" y2="458" class="map__ln-a" marker-end="url(#map-ma)"/>
+      <path d="M511,282 H505 V440 H480 V458" class="map__ln-a" marker-end="url(#map-ma)"/>
+      <text x="474" y="436" class="map__a" text-anchor="end">models</text>
+      <line x1="590" y1="342" x2="590" y2="458" class="map__ln" marker-end="url(#map-m)"/>
+      <text x="596" y="404" class="map__s">nightly</text>
+      <path d="M670,489 H676 V111 H672" class="map__ln" marker-end="url(#map-m)"/>
+    </svg>
+    </div>
+    <figcaption>Every guest has its own place on the home network through the host's bridge (<a href="/writing/proxmox">part 2</a>). Dashed lines are folders shared in from the NVMe drive, which backups skip on purpose (<a href="/writing/ollama">part 6</a>). Backups leave the host for the NAS over the home network (<a href="/writing/backups">part 4</a>).</figcaption>
+  </figure>
+
+  <h2 class="doc__h" id="request" data-toc>HOW A REQUEST FINDS A SERVICE</h2>
+  <figure class="cs__map">
+    <div class="cs__map-scroll">
+    <svg viewBox="0 0 680 200" role="img" aria-label="A browser looks up a lab name in Cloudflare's public DNS and gets a private address. At home it goes straight to Nginx Proxy Manager; away from home it goes through the Tailscale subnet router first. The proxy checks single sign-on with authentik for some apps and forwards to the service.">
+      <defs>
+        <marker id="map2-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="map__ah"/></marker>
+        <marker id="map2-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="map__ah-a"/></marker>
+      </defs>
+      <rect x="10" y="84" width="130" height="32" rx="2" class="map__box"/>
+      <text x="20" y="104" class="map__t">your browser</text>
+
+      <rect x="180" y="10" width="220" height="32" rx="2" class="map__box"/>
+      <text x="190" y="30" class="map__t">cloudflare dns · wildcard</text>
+      <path d="M75,84 V26 H178" class="map__ln" marker-end="url(#map2-m)"/>
+      <text x="84" y="62" class="map__s">1 · look up the name</text>
+
+      <rect x="360" y="84" width="170" height="32" rx="2" class="map__box map__box--hot"/>
+      <text x="370" y="104" class="map__t">nginx proxy manager</text>
+      <line x1="140" y1="100" x2="358" y2="100" class="map__ln" marker-end="url(#map2-m)"/>
+      <text x="249" y="94" class="map__s" text-anchor="middle">2a · at home</text>
+
+      <rect x="180" y="158" width="150" height="32" rx="2" class="map__box"/>
+      <text x="190" y="178" class="map__t">tailscale router</text>
+      <path d="M75,116 V174 H178" class="map__ln" marker-end="url(#map2-m)"/>
+      <text x="84" y="146" class="map__s">2b · away</text>
+      <path d="M330,174 H345 V108 H358" class="map__ln" marker-end="url(#map2-m)"/>
+
+      <rect x="560" y="84" width="110" height="32" rx="2" class="map__box"/>
+      <text x="570" y="104" class="map__t">the service</text>
+      <line x1="530" y1="100" x2="558" y2="100" class="map__ln" marker-end="url(#map2-m)"/>
+      <text x="544" y="94" class="map__s" text-anchor="middle">3</text>
+
+      <rect x="360" y="158" width="170" height="32" rx="2" class="map__box"/>
+      <text x="370" y="178" class="map__t">authentik</text>
+      <line x1="445" y1="116" x2="445" y2="156" class="map__ln-a" marker-end="url(#map2-ma)"/>
+      <text x="452" y="140" class="map__a">sign-in, some apps</text>
+    </svg>
+    </div>
+    <figcaption>The public record points at a private address, on purpose. At home that is one hop; away, only devices on the tailnet can follow it. Adding a service is one proxy entry, with no DNS change.</figcaption>
+  </figure>
+
+  <h2 class="doc__h" id="flows" data-toc>WHAT LEAVES THE HOST</h2>
+  <figure class="cs__map">
+    <div class="cs__map-scroll">
+    <svg viewBox="0 0 680 124" role="img" aria-label="Nightly at 02:30, guest disks are snapshotted into the backup server, which stores deduplicated chunks on the NAS share. Separately, every 60 seconds Uptime Kuma's results go to a collector that pushes a labels-only summary to Cloudflare's edge, which serves the public status page.">
+      <defs>
+        <marker id="map3-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="map__ah"/></marker>
+      </defs>
+      <text x="10" y="12" class="map__z">NIGHTLY BACKUP · 02:30</text>
+      <rect x="10" y="20" width="170" height="30" rx="2" class="map__box"/><text x="20" y="39" class="map__t">guest disks</text>
+      <rect x="255" y="20" width="170" height="30" rx="2" class="map__box"/><text x="265" y="39" class="map__t">backup server</text>
+      <rect x="500" y="20" width="170" height="30" rx="2" class="map__box"/><text x="510" y="39" class="map__t">nas share</text>
+      <line x1="180" y1="35" x2="253" y2="35" class="map__ln" marker-end="url(#map3-m)"/>
+      <text x="217" y="30" class="map__s" text-anchor="middle">snapshot</text>
+      <line x1="425" y1="35" x2="498" y2="35" class="map__ln" marker-end="url(#map3-m)"/>
+      <text x="462" y="30" class="map__s" text-anchor="middle">chunks</text>
+
+      <text x="10" y="78" class="map__z">STATUS PAGE · EVERY 60 S</text>
+      <rect x="10" y="86" width="170" height="30" rx="2" class="map__box"/><text x="20" y="105" class="map__t">uptime kuma</text>
+      <rect x="255" y="86" width="170" height="30" rx="2" class="map__box"/><text x="265" y="105" class="map__t">collector</text>
+      <rect x="500" y="86" width="170" height="30" rx="2" class="map__box map__box--hot"/><text x="510" y="105" class="map__t">cloudflare edge</text>
+      <line x1="180" y1="101" x2="253" y2="101" class="map__ln" marker-end="url(#map3-m)"/>
+      <text x="217" y="96" class="map__s" text-anchor="middle">results</text>
+      <line x1="425" y1="101" x2="498" y2="101" class="map__ln" marker-end="url(#map3-m)"/>
+      <text x="462" y="96" class="map__s" text-anchor="middle">labels only</text>
+    </svg>
+    </div>
+    <figcaption>Nothing calls into the lab. Backups go out to the NAS on the same network; the <a href="https://lab.monk97.me">status page</a> is fed by a push outward, and the edge refuses anything shaped like an address (<a href="/work/lab-status">case study</a>).</figcaption>
+  </figure>
+
+  <h2 class="doc__h" id="guests" data-toc>THE GUESTS</h2>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>ROLE</th><th>KIND</th><th>RUNS</th></tr></thead>
+      <tbody>
+        <tr><td>remote access</td><td>LXC</td><td>Tailscale subnet router</td></tr>
+        <tr><td>dns</td><td>LXC</td><td>AdGuard Home</td></tr>
+        <tr><td>edge proxy</td><td>LXC</td><td>Nginx Proxy Manager, wildcard TLS</td></tr>
+        <tr><td>identity</td><td>LXC</td><td>authentik</td></tr>
+        <tr><td>services</td><td>LXC</td><td>Uptime Kuma, Netdata, Dozzle, IT-Tools, the app portal</td></tr>
+        <tr><td>home automation</td><td>LXC</td><td>Homebridge (<a href="/writing/raspberry-pi">where it all began</a>)</td></tr>
+        <tr><td>documentation</td><td>LXC</td><td>MkDocs</td></tr>
+        <tr><td>browser</td><td>LXC</td><td>an isolated remote browser</td></tr>
+        <tr><td>files</td><td>LXC</td><td>Filestash, read-only</td></tr>
+        <tr class="is-pick"><td>gpu workbench</td><td>LXC + GPU</td><td>Ollama, Open WebUI, Jupyter; 12 cores</td></tr>
+        <tr><td>backups</td><td>LXC</td><td>Proxmox Backup Server</td></tr>
+        <tr><td>desktop</td><td>VM</td><td>a full Linux desktop over noVNC</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Eleven containers and one VM on 32 threads and 64 GB. Each one can be
+    snapshotted, backed up and restored on its own, which was the point of
+    the whole rebuild.
+  </p>
+
+  <div class="doc__foot">
+    <a href="/writing/">← writing</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2730e92a" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>

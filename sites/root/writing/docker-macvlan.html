@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>One Ubuntu box and a macvlan network — Athreyas</title>
+<meta name="description" content="How the home lab started: one Ubuntu desktop running every service in Docker, with macvlan giving each container its own LAN address, and the shim, routes and DNS that took.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/docker-macvlan">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=ef78b26b">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">docker-macvlan</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">One Ubuntu box and a macvlan network.</h1>
+  <p class="doc__role">Part 1 · the Docker era</p>
+  <div class="cs__meta">
+    <span>2026-05 → 2026-07</span>
+    <span>home lab series · part 1 of 7</span>
+  </div>
+
+  <p>
+    Before it was a hypervisor, the lab was a desktop. One Dell Precision
+    tower ran Ubuntu Desktop, Docker ran everything else, and every container
+    sat on the home network with an address of its own. It was quick to build
+    and easy to change, and by the time it was audited it was running
+    twenty-five containers on a single disk with no backups. This post is how
+    it was put together, with the commands, and what it cost.
+  </p>
+
+  <h2 class="doc__h" id="machine" data-toc>THE MACHINE</h2>
+  <ul>
+    <li><strong>Dell Precision Tower 7810</strong>: dual-socket board, one socket filled with a 4-core, 8-thread Xeon E5-2623 v3. The other socket was empty.</li>
+    <li><strong>64 GB</strong> of DDR4 ECC as four 16 GB sticks.</li>
+    <li><strong>RTX 3060 Ti, 8 GB.</strong> The board has no integrated graphics, so the one GPU was also the display.</li>
+    <li><strong>1 TB NVMe</strong> for the operating system and everything else, plus a 512 GB SATA SSD for cold storage. No redundancy.</li>
+    <li><strong>Ubuntu 24.04 Desktop</strong>, Docker and Compose, and the NVIDIA driver for GPU work.</li>
+  </ul>
+  <p>
+    A desktop OS on a server is convenient early on: when something breaks you
+    plug in a monitor and open a browser. It is also a lot of moving parts for
+    a machine whose only job is to keep running.
+  </p>
+
+  <h2 class="doc__h" id="why-macvlan" data-toc>WHY MACVLAN</h2>
+  <p>
+    Docker's default bridge network puts containers behind the host's address
+    and publishes them on ports: <code>host:8080</code>,
+    <code>host:8081</code>, and a growing list to remember. I wanted each
+    service to look like a real machine on the LAN, with its own IP, reachable
+    on its normal ports, and addressable from a phone or another laptop with no
+    port mapping at all.
+  </p>
+  <p>
+    Docker's <strong>macvlan</strong> driver does exactly that. It gives every
+    container its own MAC address on the physical interface, so the router and
+    every other device see it as one more host on the network.
+  </p>
+
+  <h2 class="doc__h" id="network" data-toc>THE NETWORK</h2>
+  <p>
+    One Docker network, created once, with the LAN's own subnet and gateway and
+    the host's physical interface as its parent. The addresses below are
+    examples; substitute your own.
+  </p>
+  <p class="cs__cap">CREATE THE MACVLAN NETWORK</p>
+  <pre class="cs__code"><span class="c"># find the physical interface the LAN is on (here: enp11s0)</span>
+ip -br link
+
+<span class="c"># a LAN of 192.168.1.0/24 with the router at .1</span>
+docker network create -d macvlan \
+  --subnet 192.168.1.0/24 \
+  --gateway 192.168.1.1 \
+  -o parent=enp11s0 \
+  lan-macvlan
+
+docker network inspect lan-macvlan</pre>
+  <p>
+    My notes record the network's settings rather than the command that made
+    it, and no <code>--ip-range</code> among them: every container was given a
+    fixed address by hand instead. If I did it again I would add
+    <code>--ip-range</code> to fence off a block the router's DHCP never hands
+    out, because the day a laptop and a container claim the same address is
+    not a fun day.
+  </p>
+
+  <h2 class="doc__h" id="containers" data-toc>A CONTAINER ON IT</h2>
+  <p>
+    The reverse proxy, Nginx Proxy Manager, was the first container on the
+    network and the one everything else went through. It ran from a plain
+    <code>docker run</code>, pinned to a fixed address:
+  </p>
+  <p class="cs__cap">THE REVERSE PROXY, PINNED TO ONE ADDRESS</p>
+  <pre class="cs__code">docker run -d \
+  --name=lab_proxy \
+  --hostname=lab-proxy \
+  --restart=always \
+  --cap-add=NET_ADMIN \
+  --cap-add=NET_BIND_SERVICE \
+  --network=lan-macvlan \
+  --ip=192.168.1.200 \
+  -e TZ=America/Los_Angeles \
+  -e DISABLE_IPV6="true" \
+  -v ~/Docker/nginx-proxy-manager/data:/data \
+  -v ~/Docker/nginx-proxy-manager/letsencrypt:/etc/letsencrypt \
+  --memory="512m" \
+  jc21/nginx-proxy-manager:latest</pre>
+  <p>
+    Services with a Compose file joined the same network by declaring it
+    <strong>external</strong>, so Compose uses the existing network instead of
+    creating its own, and asking for an address on it:
+  </p>
+  <p class="cs__cap">DOCKER-COMPOSE.YML: JOINING THE EXISTING NETWORK</p>
+  <pre class="cs__code">services:
+  docs:
+    image: squidfunk/mkdocs-material:9
+    networks:
+      lab:
+        ipv4_address: 192.168.1.210
+
+networks:
+  lab:
+    external: true
+    name: lan-macvlan</pre>
+  <p>
+    Each service lived in its own folder under <code>~/Docker/&lt;name&gt;/</code>
+    with its compose file and data beside it. Allocation was a convention, not
+    a system: monitoring in one block of addresses, a side project's dev stack
+    in another, one-offs wherever there was room.
+  </p>
+
+  <h2 class="doc__h" id="shim" data-toc>THE SHIM</h2>
+  <p>
+    Macvlan has one well-known catch: <strong>the host cannot talk to its own
+    macvlan containers</strong>. The kernel deliberately keeps a parent
+    interface and its macvlan children apart. Every other device on the LAN
+    reaches the proxy fine; the machine it runs on cannot.
+  </p>
+  <p>
+    The standard fix is a second macvlan interface on the host, a
+    <em>shim</em>, with its own address and an explicit route through it for
+    each container the host needs to reach. To survive reboots it lived in a
+    systemd unit:
+  </p>
+  <p class="cs__cap">/ETC/SYSTEMD/SYSTEM/MACVLAN-SHIM.SERVICE</p>
+  <pre class="cs__code">[Unit]
+Description=Macvlan Shim for Host-to-Container Routing
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=-/sbin/ip link del macvlan-shim
+ExecStart=/sbin/ip link add macvlan-shim link enp11s0 type macvlan mode bridge
+ExecStart=/sbin/ip addr add 192.168.1.254/32 dev macvlan-shim
+ExecStart=/sbin/ip link set macvlan-shim up
+<span class="c"># one /32 route per container the host has to reach</span>
+ExecStart=/sbin/ip route add 192.168.1.200/32 dev macvlan-shim
+ExecStart=/sbin/ip route add 192.168.1.210/32 dev macvlan-shim
+ExecStop=/sbin/ip link del macvlan-shim
+
+[Install]
+WantedBy=multi-user.target</pre>
+  <p class="cs__cap">ENABLE IT AND CHECK THE ROUTES</p>
+  <pre class="cs__code">sudo systemctl daemon-reload
+sudo systemctl enable --now macvlan-shim.service
+ip route | grep macvlan-shim</pre>
+  <p>
+    It works. It is also bookkeeping: every new container the host needs to
+    reach means another route line, and it is silently wrong the day you
+    forget one.
+  </p>
+
+  <h2 class="doc__h" id="dns" data-toc>NAMES INSTEAD OF NUMBERS</h2>
+  <p>
+    Addresses are not something you want to type, so dnsmasq on the host
+    answered for a private <code>.lab</code> domain, and a wildcard sent every
+    <code>*.lab</code> name to the proxy, which routed by hostname to the right
+    container. Adding a service meant adding one proxy host, with no DNS change.
+  </p>
+  <p class="cs__cap">/ETC/DNSMASQ.D/LAB.CONF</p>
+  <pre class="cs__code">interface=tailscale0
+interface=enp11s0
+bind-interfaces
+<span class="c"># the host itself</span>
+address=/tower.lab/192.168.1.10
+<span class="c"># everything else goes to the reverse proxy</span>
+address=/lab/192.168.1.200</pre>
+  <p class="cs__cap">ON EACH MAC: SEND .LAB QUERIES TO THE HOST</p>
+  <pre class="cs__code">sudo mkdir -p /etc/resolver
+echo "nameserver 192.168.1.10" | sudo tee /etc/resolver/lab</pre>
+  <p>
+    Listening on the Tailscale interface as well as the LAN meant the same
+    names worked away from home.
+  </p>
+
+  <h2 class="doc__h" id="cost" data-toc>WHAT IT COST</h2>
+  <p>
+    In July 2026 I had an AI agent audit the machine end to end before
+    changing anything (more on that in <a href="/writing/with-claude">part 7</a>).
+    What it found was the honest review of the Docker era:
+  </p>
+  <ul>
+    <li><strong>No backups, ever.</strong> One disk held the OS, every container and all their data. The first backup the machine had ever had was taken during that audit.</li>
+    <li><strong>Failures nobody saw.</strong> Two API containers had been unhealthy for seven weeks, and an mDNS publisher had been dead for two months. Docker restarted what it could and nothing told anyone about the rest.</li>
+    <li><strong>One blast radius.</strong> A host update, a full disk or a driver change touched every service at once, and there was no snapshot to roll back to.</li>
+    <li><strong>Hand-kept state.</strong> The shim's routes, the address plan and the proxy's targets were three lists that had to agree, maintained by memory.</li>
+    <li><strong>A thin CPU.</strong> Four cores served twenty-five containers and a GPU workload.</li>
+  </ul>
+  <p>
+    The same audit cleared out 135 GB of image-generation tools that were no
+    longer used. What it recommended next was not more containers but a
+    different foundation: a hypervisor, where each service is its own guest
+    with its own snapshots and backups. That is <a href="/writing/proxmox">part 2</a>.
+  </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p>
+    Before changing a host like this, have an agent tell you what is actually
+    on it. This is close to the brief that produced the audit above:
+  </p>
+  <p class="cs__cap">PROMPT: AUDIT A DOCKER HOST BEFORE TOUCHING IT</p>
+  <pre class="cs__prompt">Audit this Docker host end to end. Read only: change nothing, restart nothing.
+
+- Hardware: CPU, memory, disks and their health, GPU and driver.
+- Every container: image and age, status and health, restart policy, network, fixed IP, volumes and how big they are.
+- Networking: Docker networks (macvlan parent, subnet, any ip-range), host routes, any shim interfaces, DNS config.
+- Anything unhealthy, exited, or restarting, and for how long.
+- What has no backup.
+Then write it up as a single document: what exists, what is broken, what is at risk, and what you would change first. Quote the commands you ran.</pre>
+
+  <h2 class="doc__h" id="series">THE SERIES</h2>
+  <ol class="series">
+    <li><a href="/writing/raspberry-pi">It started with a Raspberry Pi</a></li>
+    <li><span aria-current="page">One Ubuntu box and a macvlan network</span></li>
+    <li><a href="/writing/proxmox">Moving to Proxmox, one service per container</a></li>
+    <li><a href="/writing/cpu-upgrade">Four cores to sixteen</a></li>
+    <li><a href="/writing/backups">Sixteen days of backups that weren&#x27;t</a></li>
+    <li><a href="/writing/gpu">Choosing a 70-watt GPU</a></li>
+    <li><a href="/writing/ollama">Twelve cores and most of a GPU</a></li>
+    <li><a href="/writing/with-claude">Building the lab with an agent in the loop</a></li>
+  </ol>
+
+  <div class="doc__foot">
+    <a href="/writing/raspberry-pi">← It started with a Raspberry Pi</a>
+    <a href="/writing/proxmox">Moving to Proxmox, one service per container →</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2730e92a" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>
