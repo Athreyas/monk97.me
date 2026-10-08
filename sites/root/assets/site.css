@@ -1002,9 +1002,33 @@ kbd {
 .cs__photos .cs__photo { margin: 0; }
 @media (max-width: 560px) { .cs__photos { grid-template-columns: 1fr; } }
 
+/* architecture diagrams: inline SVG coloured only through the tokens, so
+   they hold in both themes. Below the column width they scroll sideways
+   inside their box rather than shrinking text past reading size. */
+.cs__map { margin: 6px 0 22px; }
+.cs__map-scroll {
+  overflow-x: auto; padding: 14px;
+  border: 1px solid var(--line); border-radius: 3px; background: var(--bg-panel);
+}
+.cs__map svg { display: block; width: 100%; min-width: 600px; height: auto; font-family: var(--font-mono); }
+.cs__map figcaption { margin-top: 8px; font-size: 11px; line-height: 1.6; color: var(--ink-faint); }
+.map__zone { fill: color-mix(in srgb, var(--ink) 3%, var(--bg)); stroke: var(--line); }
+.map__box { fill: var(--bg); stroke: var(--line); }
+.map__box--hot { fill: var(--accent-dim); stroke: var(--accent); }
+.map__z { font-size: 9px; letter-spacing: 0.14em; fill: var(--ink-faint); }
+.map__t { font-size: 10.5px; fill: var(--ink); }
+.map__s { font-size: 9.5px; fill: var(--ink-soft); }
+.map__a { font-size: 9.5px; fill: var(--accent); }
+.map__ln { stroke: var(--ink-soft); stroke-width: 1.1; fill: none; }
+.map__ln-a { stroke: var(--accent); stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; }
+.map__bus { stroke: var(--ink-soft); stroke-width: 3; }
+.map__bridge { stroke: var(--accent); stroke-width: 3; }
+.map__ah { fill: var(--ink-soft); }
+.map__ah-a { fill: var(--accent); }
+
 /* the series navigator: where this post sits among the others */
 .series {
-  list-style: none; margin: 0; padding: 0; counter-reset: part;
+  list-style: none; margin: 0; padding: 0; counter-reset: part -1;   /* the prologue is 00 */
   display: flex; flex-direction: column; gap: 4px; font-size: 12px;
 }
 .series li { counter-increment: part; display: flex; gap: 12px; color: var(--ink-soft); }

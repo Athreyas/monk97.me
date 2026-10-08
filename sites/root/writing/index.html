@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=dab01ab4">
+<link rel="stylesheet" href="/assets/site.css?v=ef78b26b">
 
 <script src="/assets/theme.js?v=390ff9fc"></script>
 </head>
@@ -35,15 +35,27 @@
   <h1 class="doc__name">Writing.</h1>
   <p class="doc__role">Notes from building things, with the commands left in. Addresses in them are examples; the real ones stay private.</p>
 
-  <h2 class="doc__h">THE HOME LAB, REBUILT · NEWEST FIRST</h2>
+  <h2 class="doc__h">THE HOME LAB, REBUILT</h2>
   <p>
-    One machine under a desk, in seven parts: a Docker host on macvlan, the move
+    One machine under a desk, in seven parts and a prologue: a Raspberry Pi
+    that could not keep up, a Docker host on macvlan, the move
     to Proxmox, a new CPU, a backup system that failed quietly, a new GPU, the
     local models it now runs, and how an AI agent was used along the way. The
     same machine reports its health live at
     <a href="https://lab.monk97.me">lab.monk97.me</a>.
   </p>
 
+  <div class="svc">
+    <div class="svc__top">
+      <span class="svc__dot" aria-hidden="true"></span>
+      <span class="svc__org">REFERENCE · THE LAB AS BUILT</span>
+      <span class="svc__when">2026-10-08</span>
+    </div>
+    <div class="svc__title"><a href="/writing/architecture">The lab, as built</a></div>
+    <p class="svc__line">One map of where the series ended up: the network, the host and its guests, where data lives, and how a request finds a service. Products and roles, never addresses.</p>
+  </div>
+
+  <h2 class="doc__h">THE SERIES · NEWEST FIRST</h2>
   <div class="svc">
     <div class="svc__top">
       <span class="svc__dot" aria-hidden="true"></span>
@@ -112,6 +124,16 @@
     </div>
     <div class="svc__title"><a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network</a></div>
     <p class="svc__line">How the home lab started: one Ubuntu desktop running every service in Docker, with macvlan giving each container its own LAN address, and the shim, routes and DNS that took.</p>
+  </div>
+
+  <div class="svc">
+    <div class="svc__top">
+      <span class="svc__dot" aria-hidden="true"></span>
+      <span class="svc__org">PROLOGUE · WHERE IT BEGAN</span>
+      <span class="svc__when">the beginning</span>
+    </div>
+    <div class="svc__title"><a href="/writing/raspberry-pi">It started with a Raspberry Pi</a></div>
+    <p class="svc__line">Why the home lab exists at all: Homebridge on a Raspberry Pi to bring everything into Apple Home, a Pi that could not keep up, and how one bigger machine grew a service at a time.</p>
   </div>
 
   <div class="doc__foot">
