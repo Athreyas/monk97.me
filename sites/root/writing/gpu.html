@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Choosing a 70-watt GPU — Athreyas</title>
+<meta name="description" content="Why 8 GB of VRAM was the ceiling for local AI, the cards considered under a single-cable power budget, and why a slot-powered RTX PRO 2000 Blackwell won.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/gpu">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=506bd695">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">gpu</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">Choosing a 70-watt GPU.</h1>
+  <p class="doc__role">Part 5 · the GPU</p>
+  <div class="cs__meta">
+    <span>2026-10-07</span>
+    <span>home lab series · 5 of 7</span>
+  </div>
+
+  <p>
+    The RTX 3060 Ti did its job, but its 8 GB of memory capped what the lab
+    could run locally. I wanted to host my own models for coding help and
+    general experimenting, in the 20-billion-parameter-plus range, without
+    sending everything to a cloud API. This is how the replacement was chosen,
+    under a power budget that ruled out most of the obvious answers.
+  </p>
+
+  <h2 class="doc__h" id="vram" data-toc>VRAM IS THE LIMIT THAT MATTERS</h2>
+  <p>
+    A language model runs fast only when its weights fit in GPU memory. On
+    8 GB, quantised models above roughly 7 to 13 billion parameters either
+    refused to load or spilled into system RAM and crawled. A faster GPU with
+    the same 8 GB would not have helped; more memory would. The goals:
+  </p>
+  <ul>
+    <li><strong>Run larger quantised models</strong>, around 20B and up, as a daily driver.</li>
+    <li><strong>Stay inside the machine's real power limits</strong>, with no new power supply.</li>
+    <li><strong>Leave room for a second card</strong> later.</li>
+  </ul>
+
+  <h2 class="doc__h" id="power" data-toc>THE POWER BUDGET</h2>
+  <p>
+    The Precision 7810's power supply is
+    <span class="ask">825 W? confirm from the label on the PSU</span>, but the
+    3060 Ti was fed by a single 8-pin PCIe lead, about 225 W with the slot.
+    Any card wanting two or three 8-pin leads was off the table unless the
+    power supply changed too. That one constraint shaped the whole search.
+  </p>
+
+  <h2 class="doc__h" id="candidates" data-toc>THE CANDIDATES</h2>
+  <p>Prices are what we found shopping in early October 2026.</p>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>CARD</th><th>VRAM</th><th>POWER</th><th>PRICE</th><th>VERDICT</th></tr></thead>
+      <tbody>
+        <tr><td>RTX 3090</td><td>24 GB</td><td>350 W, two 8-pin</td><td>$1,200–1,800 used</td><td>over the single-lead budget</td></tr>
+        <tr><td>RTX A5000 / A4500</td><td>24 / 20 GB</td><td>230 W, one 8-pin</td><td>hard to find</td><td>ideal fit, no live listings</td></tr>
+        <tr><td>Tesla P40</td><td>24 GB</td><td>250 W, adapter + cooling</td><td>~$280</td><td>cheapest, but a project</td></tr>
+        <tr><td>Tesla V100 PCIe</td><td>32 GB</td><td>250 W, EPS-style</td><td>~$780</td><td>great value, no video out, adapter</td></tr>
+        <tr><td>RTX A4000</td><td>16 GB</td><td>140 W</td><td>$790–950 used</td><td>clean fit, older generation</td></tr>
+        <tr><td>RTX PRO 4000 Blackwell</td><td>24 GB</td><td>70–145 W</td><td>~$3,000</td><td>out of budget</td></tr>
+        <tr class="is-pick"><td>RTX PRO 2000 Blackwell</td><td>16 GB</td><td>70 W, slot only</td><td>$1,300 new</td><td>chosen</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="doc__h" id="why" data-toc>WHY THE PRO 2000</h2>
+  <ul>
+    <li><strong>No power cable at all.</strong> At 70 W it runs entirely from the PCIe slot, so the single-lead limit stopped mattering.</li>
+    <li><strong>A current generation.</strong> Blackwell brings newer tensor cores with FP8 and FP4 support, formats modern quantised models increasingly use.</li>
+    <li><strong>New for the price of used.</strong> Used Ampere cards with similar memory cost about the same, so a new card with a warranty was the better buy.</li>
+    <li><strong>A second one fits.</strong> Two cards draw about 140 W together and would give 32 GB across both.</li>
+  </ul>
+  <p>
+    One honest caveat: Blackwell workstation cards have no NVLink, so a second
+    card would talk to the first over PCIe. For inference, where a model is
+    split by layers across cards, that is fine. It will not pool the two
+    memories into one.
+  </p>
+  <p>
+    Several listings were overseas sellers on eBay, and US retailers had the
+    same card at $1,630 to $1,700. We bought from a US store with in-store
+    pickup at $1,300 plus about $140 California sales tax, to avoid import and
+    warranty risk. The old 3060 Ti is worth roughly $250 resold.
+  </p>
+
+  <h2 class="doc__h" id="swap" data-toc>THE SWAP</h2>
+  <p>
+    On 7 October 2026 the new card went into the same slot. The host restarted
+    a few times before it settled, then came up and recognised the card as an
+    RTX PRO 2000 Blackwell.
+  </p>
+  <p class="cs__cap">ON THE PROXMOX HOST: DID IT COME UP?</p>
+  <pre class="cs__code">lspci | grep -i nvidia
+dkms status                  # nvidia/595.80, &lt;kernel&gt;-pve: installed
+nvidia-smi --query-gpu=name,memory.total,power.limit --format=csv</pre>
+  <p>
+    The driver is installed with DKMS so it rebuilds itself for each new
+    Proxmox kernel. The host keeps the card; containers borrow it. How that
+    works, and what 16 GB actually runs, is <a href="/writing/ollama">part 6</a>.
+  </p>
+
+  <h2 class="doc__h" id="series">THE SERIES</h2>
+  <ol class="series">
+    <li><a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network</a></li>
+    <li><a href="/writing/proxmox">Moving to Proxmox, one service per container</a></li>
+    <li><a href="/writing/cpu-upgrade">Four cores to sixteen</a></li>
+    <li><a href="/writing/backups">Sixteen days of backups that weren&#x27;t</a></li>
+    <li><span aria-current="page">Choosing a 70-watt GPU</span></li>
+    <li><a href="/writing/ollama">Twelve cores and most of a GPU</a></li>
+    <li><a href="/writing/with-claude">Building the lab with an agent in the loop</a></li>
+  </ol>
+
+  <div class="doc__foot">
+    <a href="/writing/backups">← Sixteen days of backups that weren&#x27;t</a>
+    <a href="/writing/ollama">Twelve cores and most of a GPU →</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2fffd5f0" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Four cores to sixteen — Athreyas</title>
+<meta name="description" content="Swapping a 4-core Xeon for a 16-core E5-2697A v4 in a Dell Precision 7810, once the lab&#x27;s guests were waiting on CPU rather than memory or disk.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/cpu-upgrade">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=506bd695">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">cpu-upgrade</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">Four cores to sixteen.</h1>
+  <p class="doc__role">Part 3 · the CPU</p>
+  <div class="cs__meta">
+    <span>2026-09-23</span>
+    <span>home lab series · 3 of 7</span>
+  </div>
+
+  <p>
+    After <a href="/writing/proxmox">part 2</a> every service had its own
+    guest, and the bottleneck moved. Memory was fine at 64 GB, and storage was
+    fine. The processor was not: one 4-core, 8-thread Xeon E5-2623 v3 was now
+    shared between eleven containers, a desktop VM and a GPU workload whose
+    CPU side wanted every thread it could get.
+  </p>
+
+  <h2 class="doc__h" id="symptom" data-toc>HOW IT SHOWED</h2>
+  <p>
+    Nothing fell over; the problem was arithmetic. Twelve guests shared eight
+    threads, and the AI container, the one guest that could use every thread
+    it was given, was capped at six cores so it would not starve the rest. On
+    a hypervisor, CPU is the resource every guest competes for at once, and
+    eight threads is not much to divide.
+  </p>
+  <p class="cs__cap">SEE WHAT THE HOST HAS, AND WHAT IT IS DOING</p>
+  <pre class="cs__code">lscpu | grep -E 'Model name|Socket|Core|Thread'
+nproc
+
+<span class="c"># per-guest view: which containers are actually using the CPU</span>
+pvesh get /cluster/resources --type vm --output-format json \
+  | jq -r '.[] | "\(.name)\t\(.cpu * 100 | floor)%\t\(.maxcpu) cores"'</pre>
+
+  <h2 class="doc__h" id="choice" data-toc>THE CHOICE</h2>
+  <p>
+    The Precision 7810 takes Xeon E5 v3 and v4 chips on socket LGA2011-3, and
+    retired server parts for that socket are cheap and plentiful. The audit
+    shortlisted two:
+  </p>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>CPU</th><th>CORES / THREADS</th><th>NOTE</th></tr></thead>
+      <tbody>
+        <tr><td>E5-2623 v3</td><td>4 / 8</td><td>what was fitted</td></tr>
+        <tr><td>E5-2680 v4</td><td>14 / 28</td><td>the audit's value pick</td></tr>
+        <tr class="is-pick"><td>E5-2697A v4</td><td>16 / 32</td><td>2.6–3.6 GHz, 145 W; the best all-rounder, and the one bought</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The 2697A v4 keeps a high clock while quadrupling the core count, which
+    matters for a lab that runs both many small guests and one heavy
+    inference workload. It goes in the same socket, so no other part of the
+    machine had to change, and one socket stays free for later.
+  </p>
+
+  <h2 class="doc__h" id="swap" data-toc>THE SWAP</h2>
+  <ul>
+    <li><strong>Shut down cleanly first.</strong> Guests set to start on boot come back on their own; it is still worth a clean shutdown so nothing is mid-write.</li>
+    <li><strong>Photograph the BIOS settings.</strong> Virtualisation, VT-d and boot mode are what Proxmox and the GPU depend on, and a CPU change or a BIOS update can reset them.</li>
+    <li><strong>BIOS:</strong> <span class="ask">did this need a BIOS update first (A33 → A34?), or did A33 take the v4 as it was?</span></li>
+    <li><strong>Swapped on 23 September 2026.</strong> Same socket, same memory, same everything else.</li>
+  </ul>
+  <p class="cs__cap">AFTER: CONFIRM THE HOST SEES IT</p>
+  <pre class="cs__code">lscpu | grep 'Model name'      # Intel(R) Xeon(R) CPU E5-2697A v4 @ 2.60GHz
+nproc                          # 32
+
+<span class="c"># and every guest came back</span>
+pct list
+qm list</pre>
+
+  <h2 class="doc__h" id="spend" data-toc>SPENDING IT</h2>
+  <p>
+    More cores only help if guests are allowed to use them. In Proxmox a
+    container's share is one setting, and it applies to a running container
+    without a reboot:
+  </p>
+  <p class="cs__cap">GIVE A CONTAINER MORE CORES, LIVE</p>
+  <pre class="cs__code">pct set 107 --cores 12
+pct config 107 | grep cores</pre>
+  <p>
+    That one line is where the upgrade paid off most visibly. The AI
+    container went from six cores to twelve, and a 35-billion-parameter model
+    that runs partly on the CPU roughly doubled its speed, from 15–19 to about
+    36 tokens per second. The details are in <a href="/writing/ollama">part 6</a>.
+  </p>
+
+  <h2 class="doc__h" id="takeaway" data-toc>THE TAKEAWAY</h2>
+  <p>
+    Buy for the constraint you actually have. The lab had enough memory and
+    enough disk; it was short of threads, and one second-hand server CPU in the
+    same socket fixed that. Once compute was sorted, the limit
+    was something the CPU could not touch: 8 GB of GPU memory. Before that,
+    though, came the discovery that the backups had stopped. That is
+    <a href="/writing/backups">part 4</a>.
+  </p>
+
+  <h2 class="doc__h" id="series">THE SERIES</h2>
+  <ol class="series">
+    <li><a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network</a></li>
+    <li><a href="/writing/proxmox">Moving to Proxmox, one service per container</a></li>
+    <li><span aria-current="page">Four cores to sixteen</span></li>
+    <li><a href="/writing/backups">Sixteen days of backups that weren&#x27;t</a></li>
+    <li><a href="/writing/gpu">Choosing a 70-watt GPU</a></li>
+    <li><a href="/writing/ollama">Twelve cores and most of a GPU</a></li>
+    <li><a href="/writing/with-claude">Building the lab with an agent in the loop</a></li>
+  </ol>
+
+  <div class="doc__foot">
+    <a href="/writing/proxmox">← Moving to Proxmox, one service per container</a>
+    <a href="/writing/backups">Sixteen days of backups that weren&#x27;t →</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2fffd5f0" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>

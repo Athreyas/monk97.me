@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Building the lab with an agent in the loop — Athreyas</title>
+<meta name="description" content="How an AI coding agent was used across the lab&#x27;s rebuild: audits, runbooks and diagnosis it did well, the wrong assumptions it made, and the steps that stayed with a human.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/with-claude">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=506bd695">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">with-claude</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">Building the lab with an agent in the loop.</h1>
+  <p class="doc__role">Part 7 · how it was done</p>
+  <div class="cs__meta">
+    <span>2026-07 → 2026-10</span>
+    <span>home lab series · 7 of 7</span>
+  </div>
+
+  <p>
+    Most of this series was done with Claude Code, Anthropic's coding agent,
+    running in a terminal with SSH access to the lab. Not as an oracle, but as
+    a fast, tireless pair who reads every log, writes every runbook, and is
+    occasionally, confidently wrong. This is how it was used, what it was good
+    at, and the mistakes worth knowing about before you try the same.
+  </p>
+
+  <h2 class="doc__h" id="loop" data-toc>THE WORKING LOOP</h2>
+  <ul>
+    <li><strong>Read before acting.</strong> The rule is that the agent measures the current state rather than trusting what it was told: <code>pct list</code>, <code>pvesm status</code>, the config files themselves.</li>
+    <li><strong>Plan, then a human says go.</strong> Anything that changes the lab is proposed first, with the commands.</li>
+    <li><strong>Privileged steps stay with a human.</strong> Creating accounts, enabling services, changing user-ID mappings: the agent's own guardrails stop it doing these unattended, so it writes the script and I run it. That turned out to be the right split, not a limitation.</li>
+    <li><strong>Write it down where the next session will find it.</strong> Outcomes go into a runbook in a notes vault synced between machines, so an agent on one laptop picks up exactly where one on another left off.</li>
+  </ul>
+
+  <h2 class="doc__h" id="good-at" data-toc>WHERE IT EARNED ITS KEEP</h2>
+  <p>
+    <strong>The audit.</strong> Before anything moved, the agent inventoried
+    the Docker-era machine end to end: hardware from <code>dmidecode</code>
+    and <code>lspci</code>, every container, every network, every port. It
+    wrote the decision records and the phased migration runbook that
+    <a href="/writing/proxmox">part 2</a> followed, and it took the machine's
+    first ever backup. In the same session it caught a backup that looked
+    fine and was not: a database dump that exited successfully and produced a
+    20-byte file. <em>Verify the contents, never just the exit code</em> is in
+    the runbook because of it.
+  </p>
+  <p>
+    <strong>Finding the real error.</strong> When backups had failed for
+    sixteen days (<a href="/writing/backups">part 4</a>), PBS said only
+    "connection error". The agent went to the Proxmox-side task logs, found
+    <code>Disk quota exceeded</code>, traced the space to one container's
+    re-downloadable files, and proposed the prune, garbage collection and
+    alert that fixed it.
+  </p>
+  <p>
+    <strong>Diagnosis by measurement.</strong> "Small models feel slow" became,
+    within one conversation, two concrete causes, persistence mode and a
+    thread count larger than the core count, each with a before and after
+    number (<a href="/writing/ollama">part 6</a>).
+  </p>
+  <p>
+    <strong>The boring 80%.</strong> Container creation commands, systemd
+    units, reverse-proxy entries, DNS records, the generated config that keeps
+    the public status page from leaking an address: work that is easy to get
+    slightly wrong by hand.
+  </p>
+
+  <h2 class="doc__h" id="wrong" data-toc>WHERE IT WAS WRONG</h2>
+  <p>Every one of these was caught, and each one is a pattern worth expecting.</p>
+  <ul>
+    <li><strong>Stale context, trusted.</strong> The agent's standing notes still described the machine as an Ubuntu Docker box weeks after it became a Proxmox host. A separate plan assumed dnsmasq was the DNS server when it had long been replaced by AdGuard Home. Instructions age; the fix is to make the agent measure, not remember.</li>
+    <li><strong>A failed lookup read as an answer.</strong> A certificate-transparency search returned nothing, which was reported as "no certificate exists". The service had returned an HTTP 502. The certificate did exist, and the conclusion drawn from it was wrong.</li>
+    <li><strong>A label believed over the evidence.</strong> A port on the NAS labelled as one media app was serving a different one.</li>
+    <li><strong>Migrations that missed a consumer, twice.</strong> Moving a service to a new address updated the obvious places and missed the proxy's targets one time, and an app's own database, whose saved setting overrides its environment variables, another.</li>
+    <li><strong>Shell quoting.</strong> A password hash containing <code>$</code> signs, written through an unquoted heredoc, was silently mangled by the shell. Use <code>&lt;&lt;'EOF'</code>.</li>
+  </ul>
+
+  <h2 class="doc__h" id="takeaways" data-toc>WHAT I WOULD TELL SOMEONE STARTING</h2>
+  <ul>
+    <li><strong>Give it a runbook to keep.</strong> The agent is only as good as what the next session can read. A living document of the lab's real state beats any amount of conversation history.</li>
+    <li><strong>Make it show the evidence.</strong> "It's fixed" is not an answer; the command and its output are.</li>
+    <li><strong>Treat an empty result as a question.</strong> No output, a 200 with an empty body, a 502: none of them mean "there is nothing there".</li>
+    <li><strong>Keep the dangerous steps human.</strong> Not because the agent is reckless, but because a person running the command reads it.</li>
+  </ul>
+  <p>
+    It did not make the lab smarter than I could have; it made it faster to
+    get to the same place, and better documented than I would have bothered
+    with alone. This series is part of that documentation. It starts at
+    <a href="/writing/docker-macvlan">part 1</a>.
+  </p>
+
+  <h2 class="doc__h" id="series">THE SERIES</h2>
+  <ol class="series">
+    <li><a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network</a></li>
+    <li><a href="/writing/proxmox">Moving to Proxmox, one service per container</a></li>
+    <li><a href="/writing/cpu-upgrade">Four cores to sixteen</a></li>
+    <li><a href="/writing/backups">Sixteen days of backups that weren&#x27;t</a></li>
+    <li><a href="/writing/gpu">Choosing a 70-watt GPU</a></li>
+    <li><a href="/writing/ollama">Twelve cores and most of a GPU</a></li>
+    <li><span aria-current="page">Building the lab with an agent in the loop</span></li>
+  </ol>
+
+  <div class="doc__foot">
+    <a href="/writing/ollama">← Twelve cores and most of a GPU</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2fffd5f0" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>

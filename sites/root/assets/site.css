@@ -948,6 +948,50 @@ kbd {
   font-size: 10.5px; line-height: 1.6; color: var(--ink-soft);
   overflow-x: auto; white-space: pre;
 }
+/* ── writing (/writing, /writing/*) ──────────────────────────────── */
+/* Posts sit on the case-study chassis. Commands are meant to be copied, so
+   they get the figure's box at body-adjacent size, not the diagram's 10.5px;
+   a `#` line inside one is a comment in the reader's shell, set quieter. */
+
+.cs__code {
+  margin: 4px 0 18px; padding: 13px 16px;
+  border: 1px solid var(--line); border-left: 2px solid var(--accent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 3%, var(--bg));
+  font-size: 11.5px; line-height: 1.65; color: var(--ink);
+  overflow-x: auto; white-space: pre; tab-size: 2;
+}
+.cs__code .c { color: var(--ink-faint); }
+.cs__cap {
+  font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink-faint);
+  margin: 18px 0 6px;
+}
+.cs__table { overflow-x: auto; margin: 4px 0 18px; }
+.cs__table table { border-collapse: collapse; width: 100%; font-size: 12px; line-height: 1.6; }
+.cs__table th {
+  text-align: left; font-weight: 400; font-size: 10.5px; letter-spacing: 0.12em;
+  color: var(--ink-faint); padding: 0 14px 8px 0; border-bottom: 1px solid var(--line);
+}
+.cs__table td { color: var(--ink-soft); padding: 8px 14px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.cs__table td:first-child { color: var(--ink); white-space: nowrap; }
+.cs__table tr.is-pick td { color: var(--ink); }
+
+/* the series navigator: where this post sits among the others */
+.series {
+  list-style: none; margin: 0; padding: 0; counter-reset: part;
+  display: flex; flex-direction: column; gap: 4px; font-size: 12px;
+}
+.series li { counter-increment: part; display: flex; gap: 12px; color: var(--ink-soft); }
+.series li::before {
+  content: counter(part, decimal-leading-zero);
+  color: var(--ink-faint); font-size: 10.5px; padding-top: 1px;
+}
+.series a { color: var(--ink-soft); border-bottom: 1px solid transparent; }
+.series a:hover, .series a:focus-visible { color: var(--accent); border-bottom-color: var(--accent); }
+.series [aria-current="page"] { color: var(--ink); }
+.cs .series li { padding-left: 0; }
+.cs .series li::before { position: static; }
+
 .svc__title a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
 .svc__title a:hover, .svc__title a:focus-visible { color: var(--accent); border-bottom-color: var(--accent); }
 
