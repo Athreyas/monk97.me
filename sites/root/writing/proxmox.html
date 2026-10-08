@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=506bd695">
+<link rel="stylesheet" href="/assets/site.css?v=dab01ab4">
 
 <script src="/assets/theme.js?v=390ff9fc"></script>
 </head>
@@ -64,6 +64,35 @@
     driver into a container lets the host keep the card and any container use
     it. That is <a href="/writing/ollama">part 6</a>.
   </p>
+
+  <h2 class="doc__h" id="install" data-toc>INSTALLING IT</h2>
+  <p>
+    Proxmox VE installs from a USB stick. This machine has no remote
+    management card, so the install needed a monitor and keyboard attached;
+    after that, everything is done from a browser or SSH.
+  </p>
+  <p class="cs__cap">ON A MAC: WRITE THE INSTALLER TO A USB STICK</p>
+  <pre class="cs__code"><span class="c"># find the stick (check the size; the wrong disk here is a bad day)</span>
+diskutil list external
+
+diskutil unmountDisk /dev/diskN
+sudo dd if=proxmox-ve_9.x.iso of=/dev/rdiskN bs=4m status=progress
+diskutil eject /dev/diskN</pre>
+  <p>
+    In the installer: target the SATA SSD, ext4 (the installer then puts
+    guests on LVM-thin), a static address, the gateway, and the management
+    interface. On first boot, switch from the enterprise repository, which
+    needs a subscription, to the no-subscription one. In the web UI that is
+    <strong>node → Updates → Repositories</strong>: disable the two
+    enterprise entries and add <em>No-Subscription</em>. Then:
+  </p>
+  <p class="cs__cap">ON THE NEW HOST: FIRST BOOT</p>
+  <pre class="cs__code">apt update &amp;&amp; apt full-upgrade -y
+pveversion                    # pve-manager/9.x
+
+<span class="c"># remote hands before anything else: Tailscale on the host</span>
+curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up --ssh</pre>
 
   <h2 class="doc__h" id="safe-move" data-toc>A MIGRATION THAT COULD BE UNDONE</h2>
   <p>
@@ -163,6 +192,70 @@ pct enter 110</pre>
     </table>
   </div>
 
+  <h2 class="doc__h" id="moving" data-toc>MOVING A SERVICE ACROSS</h2>
+  <p>
+    Because the old disk was mounted on the new host, moving a Docker service
+    was a copy, not a download. The pattern, for any compose project:
+  </p>
+  <p class="cs__cap">ON THE HOST: COPY A COMPOSE PROJECT INTO A CONTAINER</p>
+  <pre class="cs__code"><span class="c"># stream the project folder from the old disk straight into container 104</span>
+tar -C /mnt/oldroot/home/&lt;user&gt;/Docker -cf - uptime-kuma \
+  | pct exec 104 -- tar -C /opt -xf -
+
+<span class="c"># Docker inside the container (it was created with nesting=1,keyctl=1)</span>
+pct exec 104 -- bash -c 'apt update &amp;&amp; apt install -y docker.io docker-compose-plugin'
+pct exec 104 -- bash -c 'cd /opt/uptime-kuma &amp;&amp; docker compose up -d'</pre>
+  <p>
+    The compose file keeps working as it was with one change: its macvlan
+    network block goes. Inside the container, Docker's ordinary bridge
+    network is fine, because the <em>container</em> now has the LAN address.
+  </p>
+  <p>
+    Data that should stay on the host rather than inside a guest is shared
+    in with a bind mount. The file browser, for example, sees a folder on the
+    host's data disk, read-only:
+  </p>
+  <p class="cs__cap">ON THE HOST: SHARE A HOST FOLDER INTO A CONTAINER, READ-ONLY</p>
+  <pre class="cs__code">pct set 110 -mp0 /mnt/data/shared,mp=/data,ro=1
+pct reboot 110</pre>
+
+  <h2 class="doc__h" id="snapshots" data-toc>THE PAYOFF: SNAPSHOTS</h2>
+  <p>
+    The reason for all of this, in two commands. Before any risky change to a
+    guest, a snapshot; if the change goes wrong, roll back to it in seconds.
+  </p>
+  <p class="cs__cap">ON THE HOST</p>
+  <pre class="cs__code">pct snapshot 104 before-upgrade --description "before the Kuma upgrade"
+pct listsnapshot 104
+
+<span class="c"># it went wrong</span>
+pct rollback 104 before-upgrade
+
+<span class="c"># it went fine</span>
+pct delsnapshot 104 before-upgrade</pre>
+  <p>
+    Snapshots are not backups: they live on the same disk as the guest.
+    Backups are <a href="/writing/backups">part 4</a>.
+  </p>
+
+  <h2 class="doc__h" id="remote" data-toc>REMOTE ACCESS, AS A GUEST</h2>
+  <p>
+    Tailscale on the host is the way in if something breaks. Day to day, one
+    small container is a Tailscale <strong>subnet router</strong>: any device
+    on my tailnet reaches the whole LAN through it, with nothing exposed to
+    the internet. An unprivileged container needs the TUN device passed in:
+  </p>
+  <p class="cs__cap">/ETC/PVE/LXC/100.CONF (ADDED LINES)</p>
+  <pre class="cs__code">lxc.cgroup2.devices.allow: c 10:200 rwm
+lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file</pre>
+  <p class="cs__cap">INSIDE THE CONTAINER</p>
+  <pre class="cs__code">echo 'net.ipv4.ip_forward = 1' &gt; /etc/sysctl.d/99-tailscale.conf
+sysctl -p /etc/sysctl.d/99-tailscale.conf
+
+curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up --advertise-routes=192.168.1.0/24
+<span class="c"># then approve the route in the Tailscale admin console</span></pre>
+
   <h2 class="doc__h" id="dns" data-toc>DNS, MOVED TWICE</h2>
   <p>
     DNS left the host along with everything else: AdGuard Home in its own
@@ -190,6 +283,21 @@ pct enter 110</pre>
     isolation but compute: twelve guests on four cores. That is
     <a href="/writing/cpu-upgrade">part 3</a>.
   </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p>
+    The migration plan came out of a conversation like this one. Point an
+    agent with shell access at your own Docker host and give it:
+  </p>
+  <p class="cs__cap">PROMPT: PLAN A DOCKER-TO-PROXMOX MIGRATION</p>
+  <pre class="cs__prompt">I want to move this Docker host to Proxmox VE, one service per LXC container. Do not change anything yet.
+
+1. Inventory the host: hardware (dmidecode, lspci, lsblk), every container with its image, volumes, networks, fixed IPs and restart policy, and every compose project on disk.
+2. For each service, say whether it should be an LXC container, a VM, or retired, and why.
+3. Propose a disk layout that keeps the current install intact and readable until the migration is finished.
+4. Propose an IP plan, and list every place an old address is referenced: proxy targets, DNS records, app configs and app databases.
+5. Write a phased runbook with a rollback for every phase, and the backup to take before phase one.
+Show me the commands you ran and their output, not just conclusions.</pre>
 
   <h2 class="doc__h" id="series">THE SERIES</h2>
   <ol class="series">

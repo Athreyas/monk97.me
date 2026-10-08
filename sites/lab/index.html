@@ -52,6 +52,15 @@
       not endpoints — there is nothing addressable on this page.
     </p>
     <p class="body--soft">
+      What it is: one Dell Precision tower running Proxmox VE — eleven
+      containers and a VM on a 16-core Xeon, a 16 GB RTX PRO 2000 serving local
+      language models, and nightly backups to a NAS. It began as a single Ubuntu
+      desktop running Docker on macvlan; the move to a hypervisor, the CPU and
+      GPU upgrades, a backup failure that stayed quiet for sixteen days, and the
+      AI agent that helped throughout are written up with the commands left in.
+      <a class="body__link" href="https://monk97.me/writing/">How it got here, in seven parts&nbsp;→</a>
+    </p>
+    <p class="body--soft">
       How, at the level that is safe to say: a collector inside the network
       pushes a sanitised summary out to the edge, and this page only ever
       reads what last landed. Every label is a constant from an allowlist;

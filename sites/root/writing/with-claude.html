@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=506bd695">
+<link rel="stylesheet" href="/assets/site.css?v=dab01ab4">
 
 <script src="/assets/theme.js?v=390ff9fc"></script>
 </head>
@@ -97,6 +97,31 @@
     <li><strong>Migrations that missed a consumer, twice.</strong> Moving a service to a new address updated the obvious places and missed the proxy's targets one time, and an app's own database, whose saved setting overrides its environment variables, another.</li>
     <li><strong>Shell quoting.</strong> A password hash containing <code>$</code> signs, written through an unquoted heredoc, was silently mangled by the shell. Use <code>&lt;&lt;'EOF'</code>.</li>
   </ul>
+
+  <h2 class="doc__h" id="standing" data-toc>STANDING INSTRUCTIONS</h2>
+  <p>
+    Claude Code reads a <code>CLAUDE.md</code> file at the start of every
+    session; other agents have their own equivalent. Most of the lessons above
+    ended up as a line in one. A version you can adapt for your own lab:
+  </p>
+  <p class="cs__cap">CLAUDE.MD FOR A HOME LAB</p>
+  <pre class="cs__prompt"># Home lab: standing instructions
+
+## Where the truth is
+- The runbook at docs/runbook.md describes the lab as it is. Read it first; update it at the end of any session that changed something.
+- If the runbook and the machine disagree, the machine is right. Measure (pct list, pvesm status, the config file) before relying on anything written here.
+
+## How to work
+- Read-only until I say go. Propose changes as commands I can read, with the rollback.
+- Snapshot a guest before changing it: pct snapshot &lt;id&gt; before-&lt;change&gt;.
+- I run anything that creates accounts, enables services, or changes ID mappings. Write those as a script.
+- Show evidence: the command and its output, not "it works".
+
+## Known traps
+- An empty or failed lookup is not an answer. Check the status code.
+- When an address changes, list every consumer first: proxy targets, DNS, app configs, and app databases (saved settings can override env vars).
+- Quote heredocs (&lt;&lt;'EOF') when the content has $ in it.
+- "Up" is not "working": a backup server can answer while every backup fails.</pre>
 
   <h2 class="doc__h" id="takeaways" data-toc>WHAT I WOULD TELL SOMEONE STARTING</h2>
   <ul>

@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=506bd695">
+<link rel="stylesheet" href="/assets/site.css?v=dab01ab4">
 
 <script src="/assets/theme.js?v=390ff9fc"></script>
 </head>
@@ -166,6 +166,23 @@ pct set 107 -mp1 /mnt/oldroot/ollama,mp=/srv/ollama</pre>
   </p>
 
   <h2 class="doc__h" id="results" data-toc>WHAT 16 GB RUNS NOW</h2>
+  <p>
+    Every number below came from Ollama itself. <code>--verbose</code> prints
+    the generation speed after each answer, and <code>ollama ps</code> shows how
+    much of a loaded model is on the GPU:
+  </p>
+  <p class="cs__cap">INSIDE THE CONTAINER: MEASURING A MODEL</p>
+  <pre class="cs__code"><span class="c"># run once to load it, then again for a warm number</span>
+docker exec -it ollama ollama run gpt-oss:20b-lab --verbose "Explain LVM-thin in three sentences."
+<span class="c"># ...</span>
+<span class="c"># eval rate:            NN.NN tokens/s     &lt;- the figure in the table</span>
+
+docker exec ollama ollama ps
+<span class="c"># output looks like:</span>
+<span class="c"># NAME               SIZE     PROCESSOR          CONTEXT</span>
+<span class="c"># qwen3.6:35b-a3b-lab  ...    37%/63% CPU/GPU    16384</span>
+
+nvidia-smi --query-gpu=memory.used,memory.total,utilization.gpu --format=csv</pre>
   <p>Warm, one request at a time, after all four changes:</p>
   <div class="cs__table">
     <table>
@@ -193,6 +210,16 @@ pct set 107 -mp1 /mnt/oldroot/ollama,mp=/srv/ollama</pre>
     the lab directly. How that worked, and where it went wrong, is
     <a href="/writing/with-claude">part 7</a>.
   </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p class="cs__cap">PROMPT: MY LOCAL MODELS FEEL SLOW</p>
+  <pre class="cs__prompt">My local models through Ollama feel slow. Find out why with measurements, and change nothing until I agree.
+
+- The GPU: model, VRAM, driver, persistence mode, and what else is using it.
+- The container or VM Ollama runs in: cores and memory it is given, and how many threads Ollama actually starts.
+- Ollama's settings (keep-alive, flash attention, KV cache type, context length, loaded-model limit) and where model files are stored.
+- For each model I use: size, how much is on the GPU (ollama ps), and warm tokens per second (ollama run --verbose), cold load time too.
+Then propose changes one at a time, each with the number you expect it to move, and re-measure after each one.</pre>
 
   <h2 class="doc__h" id="series">THE SERIES</h2>
   <ol class="series">

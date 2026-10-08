@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=506bd695">
+<link rel="stylesheet" href="/assets/site.css?v=dab01ab4">
 
 <script src="/assets/theme.js?v=390ff9fc"></script>
 </head>
@@ -169,16 +169,59 @@ proxmox-backup-manager garbage-collection start &lt;datastore&gt;</pre>
     frozen, healthy-looking number.
   </p>
 
+  <h2 class="doc__h" id="check" data-toc>CHECKING IT YOURSELF</h2>
+  <p>
+    Three questions worth asking of any Proxmox backup setup, each one
+    command:
+  </p>
+  <p class="cs__cap">ON THE PROXMOX HOST</p>
+  <pre class="cs__code"><span class="c"># how full is the backup storage, really?</span>
+pvesm status
+
+<span class="c"># is any guest left out of every backup job?</span>
+pvesh get /cluster/backup-info/not-backed-up --output-format json
+
+<span class="c"># the newest backups on the store, with their times</span>
+pvesm list pbs-store --content backup | sort -k2 | tail -20
+
+<span class="c"># what did last night's job actually say?</span>
+grep -h -E 'INFO: (Finished|Backup job finished)|ERROR' \
+  $(ls -t /var/log/pve/tasks/*/*vzdump* | head -1)</pre>
+  <p class="cs__cap">IN THE PBS CONTAINER</p>
+  <pre class="cs__code">proxmox-backup-manager datastore list
+proxmox-backup-manager prune-job list
+proxmox-backup-manager garbage-collection status &lt;datastore&gt;</pre>
+
   <h2 class="doc__h" id="still-open" data-toc>STILL OPEN</h2>
   <ul>
     <li><strong>No scheduled verify job yet.</strong> PBS can re-read every chunk on a schedule and check it against its checksum. It should, and it does not yet.</li>
     <li><strong>No restore test yet.</strong> A backup that has never been restored is a hypothesis. The next step is to restore one guest to a spare ID and boot it.</li>
   </ul>
+  <p class="cs__cap">BOTH, WHEN THEY ARE DONE</p>
+  <pre class="cs__code"><span class="c"># in PBS: re-read every chunk weekly and check it against its checksum</span>
+proxmox-backup-manager verify-job create weekly-verify \
+  --store &lt;datastore&gt; --schedule 'sun 04:00' --outdated-after 30
+
+<span class="c"># on the host: restore a container's latest backup to a spare ID, unstarted</span>
+pct restore 999 pbs-store:backup/ct/104/&lt;timestamp&gt; --storage local-lvm
+pct set 999 --delete net0     # same address as the original; start it with no network
+pct start 999 &amp;&amp; pct exec 999 -- systemctl is-system-running
+pct destroy 999 --purge</pre>
   <p>
     The broader lesson goes beyond backups: a monitor that checks a service
     is up says nothing about whether the service is doing its job. The same
     week, the GPU was replaced. That is <a href="/writing/gpu">part 5</a>.
   </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p class="cs__cap">PROMPT: ARE MY BACKUPS ACTUALLY WORKING?</p>
+  <pre class="cs__prompt">Check whether my Proxmox backups are working, not whether the backup server is up. Read only.
+
+- For every guest: the time of its last successful backup, and the error from any failed run since. Read the Proxmox-side task logs, not just the PBS task list.
+- Datastore usage against its real limit, including any quota on the NFS or SMB share underneath it.
+- Whether prune, garbage collection and verify jobs exist, when they last ran, and what they freed.
+- Which guests are biggest in backups, and how much of that is re-downloadable (images, caches, model weights).
+- What would have alerted me if backups had stopped a week ago. If the answer is nothing, propose the smallest check that would.</pre>
 
   <h2 class="doc__h" id="series">THE SERIES</h2>
   <ol class="series">

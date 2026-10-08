@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=506bd695">
+<link rel="stylesheet" href="/assets/site.css?v=dab01ab4">
 
 <script src="/assets/theme.js?v=390ff9fc"></script>
 </head>
@@ -65,6 +65,20 @@ pvesh get /cluster/resources --type vm --output-format json \
 
   <h2 class="doc__h" id="choice" data-toc>THE CHOICE</h2>
   <p>
+    First, what the board actually is and what it is running, all readable
+    from Linux without opening the case:
+  </p>
+  <p class="cs__cap">BEFORE BUYING ANYTHING: WHAT IS IN THERE</p>
+  <pre class="cs__code">sudo dmidecode -t bios | grep -E 'Vendor|Version|Release Date'
+sudo dmidecode -t processor | grep -E 'Socket Designation|Version|Status|Core Count|Thread Count'
+sudo dmidecode -t memory | grep -E 'Locator|Size|Speed' | grep -v 'No Module'</pre>
+  <p>
+    The processor table shows two sockets, one marked unpopulated. The memory
+    table shows four 16 GB sticks, which on this board all have to sit beside
+    the first CPU: the second socket's slots do nothing without a second CPU.
+  </p>
+
+  <p>
     The Precision 7810 takes Xeon E5 v3 and v4 chips on socket LGA2011-3, and
     retired server parts for that socket are cheap and plentiful. The audit
     shortlisted two:
@@ -87,6 +101,15 @@ pvesh get /cluster/resources --type vm --output-format json \
   </p>
 
   <h2 class="doc__h" id="swap" data-toc>THE SWAP</h2>
+  <figure class="cs__photo cs__photo--tall">
+    <img src="/writing/img/chassis-top.jpg" width="1140" height="1285" loading="lazy" alt="The open Dell Precision 7810 from above: power supply top left, an RTX 3060 Ti and a red low-profile card in the PCIe slots, an empty CPU socket at the right, drive cages below.">
+    <figcaption>The swap day, 23 September 2026, with the side off. The empty, capped socket at the right is the second CPU socket.</figcaption>
+  </figure>
+  <figure class="cs__photo">
+    <img src="/writing/img/second-socket.jpg" width="1400" height="1050" loading="lazy" alt="Close-up of an empty LGA2011-3 CPU socket with its protective cover on, beside a yellow sticker reading Non-active memory slot.">
+    <figcaption>The second socket, still capped. The yellow sticker marks its memory slots as inactive unless a second CPU is fitted, which is why all four sticks sit beside the first.</figcaption>
+  </figure>
+
   <ul>
     <li><strong>Shut down cleanly first.</strong> Guests set to start on boot come back on their own; it is still worth a clean shutdown so nothing is mid-write.</li>
     <li><strong>Photograph the BIOS settings.</strong> Virtualisation, VT-d and boot mode are what Proxmox and the GPU depend on, and a CPU change or a BIOS update can reset them.</li>
@@ -126,6 +149,15 @@ pct config 107 | grep cores</pre>
     though, came the discovery that the backups had stopped. That is
     <a href="/writing/backups">part 4</a>.
   </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p class="cs__cap">PROMPT: IS THE CPU MY BOTTLENECK, AND WHAT CAN THIS BOARD TAKE?</p>
+  <pre class="cs__prompt">I run Proxmox on this machine. Read only.
+
+1. Tell me whether CPU is actually the constraint: host load over the last week, per-guest CPU, steal and iowait, memory pressure, and disk latency. Rank the bottlenecks with evidence.
+2. Identify the exact board, BIOS version and current CPU from dmidecode.
+3. List the CPUs this board supports at this BIOS version, and whether a BIOS update is needed for any of them. Cite the vendor's documentation, not forum guesses.
+4. Shortlist three upgrades by cores, clock and TDP, with what each would change for my workload.</pre>
 
   <h2 class="doc__h" id="series">THE SERIES</h2>
   <ol class="series">

@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=506bd695">
+<link rel="stylesheet" href="/assets/site.css?v=dab01ab4">
 
 <script src="/assets/theme.js?v=390ff9fc"></script>
 </head>
@@ -234,6 +234,21 @@ echo "nameserver 192.168.1.10" | sudo tee /etc/resolver/lab</pre>
     different foundation: a hypervisor, where each service is its own guest
     with its own snapshots and backups. That is <a href="/writing/proxmox">part 2</a>.
   </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p>
+    Before changing a host like this, have an agent tell you what is actually
+    on it. This is close to the brief that produced the audit above:
+  </p>
+  <p class="cs__cap">PROMPT: AUDIT A DOCKER HOST BEFORE TOUCHING IT</p>
+  <pre class="cs__prompt">Audit this Docker host end to end. Read only: change nothing, restart nothing.
+
+- Hardware: CPU, memory, disks and their health, GPU and driver.
+- Every container: image and age, status and health, restart policy, network, fixed IP, volumes and how big they are.
+- Networking: Docker networks (macvlan parent, subnet, any ip-range), host routes, any shim interfaces, DNS config.
+- Anything unhealthy, exited, or restarting, and for how long.
+- What has no backup.
+Then write it up as a single document: what exists, what is broken, what is at risk, and what you would change first. Quote the commands you ran.</pre>
 
   <h2 class="doc__h" id="series">THE SERIES</h2>
   <ol class="series">

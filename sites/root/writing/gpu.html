@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css?v=506bd695">
+<link rel="stylesheet" href="/assets/site.css?v=dab01ab4">
 
 <script src="/assets/theme.js?v=390ff9fc"></script>
 </head>
@@ -68,6 +68,14 @@
     Any card wanting two or three 8-pin leads was off the table unless the
     power supply changed too. That one constraint shaped the whole search.
   </p>
+  <figure class="cs__photo">
+    <img src="/writing/img/psu-and-gpu.jpg" width="1400" height="849" loading="lazy" alt="Inside the Dell tower: the power supply along the top with its regulatory label, and a bundle of black power leads running down into a ZOTAC GeForce RTX 3060 Ti.">
+    <figcaption>The power supply (top) and the lead into the RTX 3060 Ti (bottom), photographed with the side off on the CPU swap day. That lead is the whole power budget for a graphics card in this machine.</figcaption>
+  </figure>
+  <p class="cs__cap">WHAT THE CURRENT CARD DRAWS, AND HOW IT IS CONNECTED</p>
+  <pre class="cs__code">nvidia-smi -q -d POWER | grep -E 'Power Draw|Power Limit'
+<span class="c"># the slot it sits in: is it running at full PCIe width?</span>
+sudo lspci -vv -s $(lspci | awk '/NVIDIA/ &amp;&amp; /VGA|3D/ {print $1; exit}') | grep -E 'LnkCap|LnkSta'</pre>
 
   <h2 class="doc__h" id="candidates" data-toc>THE CANDIDATES</h2>
   <p>Prices are what we found shopping in early October 2026.</p>
@@ -121,6 +129,14 @@ nvidia-smi --query-gpu=name,memory.total,power.limit --format=csv</pre>
     Proxmox kernel. The host keeps the card; containers borrow it. How that
     works, and what 16 GB actually runs, is <a href="/writing/ollama">part 6</a>.
   </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p class="cs__cap">PROMPT: CHOOSE A GPU FOR LOCAL MODELS UNDER REAL CONSTRAINTS</p>
+  <pre class="cs__prompt">Help me choose a GPU for running local LLMs on this machine.
+
+Constraints: read them from the machine where you can (PCIe slots and link widths, power connectors in use, case clearance if documented for this model), and ask me for anything you cannot read, such as the PSU's wattage and spare cables. Budget: [your budget]. Target: [the model sizes you want to run, and the context length].
+
+For each candidate: VRAM, power and connectors, physical size, new and used price where I live, and whether it fits every constraint. Say what each one can run at my target context, with the quantisation, and show the memory arithmetic. Recommend one, and say what would change the answer.</pre>
 
   <h2 class="doc__h" id="series">THE SERIES</h2>
   <ol class="series">
