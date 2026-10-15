@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>One GPU, three containers, one owner — Athreyas</title>
+<meta name="description" content="Splitting one crowded AI container into three: an inference box that owns the GPU, a chat front end with none, and a notebook workbench. How the engines were evaluated, what was measured, and how it was built.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/inference">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=ef78b26b">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">inference</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">One GPU, three containers, one owner.</h1>
+  <p class="doc__role">Part 8 · local models, rebuilt</p>
+  <div class="cs__meta">
+    <span>2026-10-15</span>
+    <span>home lab series · part 8 of 8</span>
+  </div>
+
+  <p>
+    A week after <a href="/writing/ollama">part 6</a>, the AI container
+    worked, but it was doing three jobs at once: Ollama serving models, Open
+    WebUI as the chat front end, and Jupyter for notebooks, all in one LXC
+    container with the GPU. On 15 October 2026 it became three containers,
+    Ollama was replaced, and the lab gained voice and images. The everyday
+    model went from 60 to 80 tokens per second on the same card.
+  </p>
+
+  <h2 class="doc__h" id="inspiration" data-toc>THE INSPIRATION</h2>
+  <p>
+    It started with a brainstorm note, written with another AI agent, about a
+    new wave of inference engines for <strong>mixture-of-experts</strong>
+    models: Strata, ik_llama.cpp, KTransformers and FreeToken. Their shared
+    idea is to keep the experts a model uses most on the GPU, put the rest in
+    system RAM, and lean on a fast SSD when even that runs out. The promise
+    was bigger models and more tokens from the same 16 GB card.
+  </p>
+  <p>
+    The second push was simpler. One container held the chat UI, the model
+    server and the notebooks, so restarting one meant touching all three, the
+    disk filled with all three's images, and nothing said who the GPU belonged
+    to at any moment.
+  </p>
+
+  <h2 class="doc__h" id="goal" data-toc>THE GOAL</h2>
+  <ul>
+    <li><strong>Separate the jobs.</strong> One container per job, so each can be restarted, resized and backed up on its own.</li>
+    <li><strong>Give the GPU one owner.</strong> Every model, image and voice request goes through one place that decides what is loaded.</li>
+    <li><strong>Faster on the same hardware.</strong> More RAM was ruled out early: the spare sticks are 16 GB, and 32 GB DDR4 sticks cost too much.</li>
+    <li><strong>A wider lineup.</strong> Models from several families rather than mostly one, plus speech-to-text, text-to-speech, image generation and image editing in the same chat.</li>
+  </ul>
+
+  <h2 class="doc__h" id="evaluation" data-toc>HOW IT WAS EVALUATED</h2>
+  <p>
+    The first pass was checking the brainstorm's claims against this machine
+    before installing anything:
+  </p>
+  <ul>
+    <li><strong>An SSD does not add speed.</strong> Streaming weights from disk lets a bigger model load; it is the slowest tier, so it never raises tokens per second, and it does not lengthen the context either.</li>
+    <li><strong>The new engines only help a model that is partly on the CPU.</strong> The everyday model already fit entirely on the GPU, and two of the others were dense models, where expert placement does not apply. Only one model in the lineup stood to gain.</li>
+    <li><strong>The headline model did not fit.</strong> Strata is built for one 125-billion-parameter model, about 63 GB at 4-bit, on a host with 62 GB of RAM shared by every other guest. Parked until there is more RAM.</li>
+    <li><strong>Mainline llama.cpp had caught up.</strong> A week earlier it gained an expert cache that keeps hot experts on the GPU, the core trick of the specialist forks. So the first test was simply llama.cpp against Ollama.</li>
+  </ul>
+  <p>
+    The test: the same prompt of about 1,200 words, with a unique first line on every run
+    so no cache could help, 400 tokens out, greedy decoding, the median of three
+    runs, and only one engine allowed on the GPU at a time. Both engines got the
+    same quantisation, flash attention and an 8-bit context cache.
+  </p>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>MODEL</th><th>OLLAMA TOK/S</th><th>LLAMA.CPP TOK/S</th><th>NOTES</th></tr></thead>
+      <tbody>
+        <tr class="is-pick"><td>gpt-oss 20B</td><td>59.8</td><td>80.2</td><td>entirely on the GPU in both; +34%</td></tr>
+        <tr><td>Qwen3.6 35B-A3B</td><td>37.1</td><td>53.5</td><td>mixture of experts with the expert cache; +44%</td></tr>
+        <tr><td>Mistral Small 3.2 24B</td><td>18.2</td><td>17.8</td><td>dense, fits; no change</td></tr>
+        <tr><td>Qwen3.8 27B</td><td>1.0</td><td>8.0</td><td>dense, spills past VRAM; slow either way</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The surprise was the first row: a model that was already 100% on the GPU
+    ran a third faster under plain llama.cpp. The second surprise was practical.
+    Ollama's model files did not load in upstream llama.cpp at all (one used a
+    private architecture name, another a different tensor layout), so every
+    model was downloaded again as the publisher's own GGUF file.
+  </p>
+  <p>
+    Then the lineup itself, chosen to span families, each tested the same way
+    once the new containers existed:
+  </p>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>MODEL</th><th>MAKER</th><th>TOK/S</th><th>VERDICT</th></tr></thead>
+      <tbody>
+        <tr class="is-pick"><td>gpt-oss 20B</td><td>OpenAI</td><td>80.7</td><td>kept · the everyday default</td></tr>
+        <tr><td>Gemma 4 26B-A4B</td><td>Google</td><td>58.6</td><td>kept · everyday, and reads images</td></tr>
+        <tr><td>GLM-4.7-Flash</td><td>Zhipu</td><td>52.7</td><td>kept · agents and tool calls</td></tr>
+        <tr><td>Qwen3-Coder-Next 80B-A3B</td><td>Qwen</td><td>17.3</td><td>kept · slow, but the strongest coder that fits</td></tr>
+        <tr><td>Devstral Small 2 24B</td><td>Mistral</td><td>17.5</td><td>dropped · dense, at its ceiling on this card</td></tr>
+        <tr><td>Mistral Small 4 119B</td><td>Mistral</td><td>timed out</td><td>dropped · 42.8 GB on a 40 GB container, it read from disk</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The pattern from part 6 held. Mixture-of-experts models with a few billion
+    active parameters stay quick even when they spill into RAM; dense models
+    and anything bigger than RAM do not. Two other candidates never got as far
+    as a download: Kimi K3, at 2.8 trillion parameters, and Aleph Alpha's
+    German-first Kolibri-1, which stock llama.cpp cannot load yet.
+  </p>
+
+  <h2 class="doc__h" id="architecture" data-toc>THE ARCHITECTURE</h2>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>CONTAINER</th><th>GPU</th><th>RUNS</th><th>SIZE</th></tr></thead>
+      <tbody>
+        <tr class="is-pick"><td>inference</td><td>owner</td><td>llama-swap with llama.cpp, Speaches for voice, ComfyUI for images</td><td>12 cores, 40 GB</td></tr>
+        <tr><td>chat</td><td>none</td><td>Open WebUI, talking to inference over the network</td><td>4 cores, 2 GB</td></tr>
+        <tr><td>workbench</td><td>shared</td><td>Jupyter, for short training runs</td><td>8 cores, 6 GB</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    <strong>llama-swap</strong> is the owner. It is a small proxy with one
+    OpenAI-compatible address that starts the right <code>llama-server</code>
+    for whichever model a request names, stops the previous one, and unloads
+    after ten idle minutes. Two heavy requests can no longer race for 16 GB;
+    they take turns. Speech runs beside it (Whisper for speech-to-text, Kokoro
+    for text-to-speech), and ComfyUI handles images: FLUX.2 klein 4B to
+    generate and Qwen-Image-Edit to edit.
+  </p>
+  <p>
+    Images and language models cannot both sit in 16 GB, so the two hand the
+    card over explicitly. Before ComfyUI runs a job, it tells llama-swap to
+    unload. Before llama-swap starts a model, it tells ComfyUI to free its
+    memory. The workbench keeps direct GPU access because notebooks need it,
+    and the same unload call clears the card before a training run.
+  </p>
+  <p>
+    The chat container needs no GPU at all. It is the only thing the browser
+    talks to, and it reaches models, voice and images over the home network,
+    so it can be rebuilt or upgraded without touching a single model.
+  </p>
+
+  <h2 class="doc__h" id="build" data-toc>HOW IT WAS BUILT</h2>
+  <p>
+    <strong>1. A new container that can see the GPU.</strong> Same recipe as
+    part 6: the device lines from the old container's config, then the NVIDIA
+    user-space libraries at the host's exact driver version, with no kernel
+    module.
+  </p>
+  <p class="cs__cap">ON THE HOST</p>
+  <pre class="cs__code">pct create 112 local:vztmpl/debian-13-standard_13.6-1_amd64.tar.zst \
+  --hostname inference --cores 12 --memory 40960 --rootfs local-lvm:96 \
+  --net0 name=eth0,bridge=vmbr0,ip=192.168.1.50/24,gw=192.168.1.1 \
+  --unprivileged 1 --features nesting=1,keyctl=1 \
+  --mp0 /mnt/oldroot/ollama/gguf,mp=/models,ro=1
+<span class="c"># the GPU lines, copied from the old container</span>
+grep '^lxc\.' /etc/pve/lxc/107.conf &gt;&gt; /etc/pve/lxc/112.conf
+pct start 112</pre>
+  <p class="cs__cap">INSIDE THE CONTAINER</p>
+  <pre class="cs__code"><span class="c"># user space only, at the host's driver version</span>
+sh NVIDIA-Linux-x86_64-595.80.run --silent --no-kernel-module
+<span class="c"># docker + the NVIDIA container toolkit, then let it run unprivileged</span>
+nvidia-ctk runtime configure --runtime=docker
+sed -i 's/^#\?no-cgroups = .*/no-cgroups = true/' /etc/nvidia-container-runtime/config.toml
+systemctl restart docker
+docker run --rm --gpus all ubuntu nvidia-smi -L    <span class="c"># the card, by name</span></pre>
+  <p>
+    The disk started at 32 GB and filled during the first build: the CUDA
+    images for these three services weigh about 20 GB together. It is 96 GB
+    now, and models live on the NVMe drive, outside every backup.
+  </p>
+
+  <p>
+    <strong>2. llama-swap, with the hand-off built in.</strong> Each model is a
+    command. The shared part asks ComfyUI to free the card first, then hands
+    over to <code>llama-server</code>:
+  </p>
+  <p class="cs__cap">/OPT/LLAMA-SWAP/CONFIG.YAML (TWO OF FOUR MODELS)</p>
+  <pre class="cs__code">macros:
+  free_comfy: "curl -s -m 5 -X POST -H 'Content-Type: application/json' -d '{\"unload_models\":true,\"free_memory\":true}' http://192.168.1.50:8188/free >/dev/null;"
+  srv: "exec /app/llama-server --port ${PORT} --jinja -fa on -ctk q8_0 -ctv q8_0 -t 6"
+models:
+  gpt-oss-20b:
+    cmd: sh -c "${free_comfy} ${srv} -m /models/gpt-oss-20b-MXFP4.gguf -ngl 99 -c 32768"
+    ttl: 600
+  qwen3-coder-next:
+    <span class="c"># 80B mixture of experts: experts in RAM, the hottest cached on the GPU</span>
+    cmd: sh -c "${free_comfy} ${srv} -m /models/Qwen3-Coder-Next-UD-IQ4_XS.gguf -c 32768 -ngl 99 --cpu-moe --moe-cache-mib 9000 --fit off"
+    ttl: 600</pre>
+  <p>
+    For the 80B model, keeping every expert in RAM with a 9 GB cache of the
+    busiest ones on the GPU decoded at 17.3 tokens per second, against 14.7
+    when llama.cpp placed layers on its own.
+  </p>
+
+  <p>
+    <strong>3. Voice.</strong> Speaches serves both directions behind an
+    OpenAI-style API. On the CPU, Whisper took 22.5 seconds to transcribe a
+    six-second clip on this ten-year-old Xeon. On the GPU it takes 0.68
+    seconds and about 1.3 GB, released after five idle minutes.
+  </p>
+  <p class="cs__cap">INSIDE THE CONTAINER</p>
+  <pre class="cs__code">docker run -d --name speaches --restart unless-stopped --gpus all -p 8000:8000 \
+  -e WHISPER__INFERENCE_DEVICE=cuda -e WHISPER__COMPUTE_TYPE=int8_float16 \
+  -e STT_MODEL_TTL=300 -e TTS_MODEL_TTL=300 \
+  ghcr.io/speaches-ai/speaches:latest-cuda</pre>
+
+  <p>
+    <strong>4. Images, and the other half of the hand-off.</strong> ComfyUI
+    runs with <code>--disable-smart-memory</code>, so it moves models back to
+    RAM after every job instead of holding the card. A ten-line custom node
+    makes it ask llama-swap to unload before each job starts:
+  </p>
+  <p class="cs__cap">CUSTOM_NODES/GPU_GATE/__INIT__.PY</p>
+  <pre class="cs__code">import urllib.request
+import execution
+
+_execute_async = execution.PromptExecutor.execute_async
+
+async def execute_async(self, *args, **kwargs):
+    try:
+        urllib.request.urlopen("http://192.168.1.50:8080/unload", timeout=60).read()
+    except Exception:
+        pass    <span class="c"># never block an image on the gate</span>
+    return await _execute_async(self, *args, **kwargs)
+
+execution.PromptExecutor.execute_async = execute_async
+NODE_CLASS_MAPPINGS = {}</pre>
+  <p>
+    A 1024-pixel image from FLUX.2 klein takes 5 seconds warm, 14 from cold.
+    An edit with Qwen-Image-Edit, quantised to 4-bit with a four-step speed-up,
+    takes about 40 seconds, because a 13 GB model and its 9 GB text encoder
+    come back onto the card for each job. That is the cost of always giving
+    the GPU back, and worth it.
+  </p>
+
+  <p>
+    <strong>5. The chat container.</strong> Open WebUI's data moved across in
+    one pipe, and the new container runs a pinned release (0.12.2, up from
+    0.11.3) rather than a moving tag:
+  </p>
+  <p class="cs__cap">ON THE HOST</p>
+  <pre class="cs__code">pct exec 107 -- docker stop open-webui
+pct exec 107 -- tar -C /opt/open-webui -cf - data | pct exec 113 -- tar -C /opt/open-webui -xf -</pre>
+  <p>
+    The lesson from part 6 applied again: Open WebUI keeps its settings in its
+    own database, and those win over environment variables. The model
+    connection, the voice endpoints and both image workflows were written as
+    rows there, then the reverse proxy's entry for the chat name was pointed at
+    the new container. No DNS changed.
+  </p>
+
+  <p>
+    <strong>6. Shrinking what was left.</strong> With Ollama and the old chat
+    gone, the workbench went from 12 cores and 16 GB to 8 cores and 6 GB, and
+    its disk from 90 GB used to 60. Three other containers came down to 2 GB
+    each. Container memory limits used to add up to about 80 GB on a 62 GB
+    host; now they roughly match it.
+  </p>
+  <p class="cs__cap">ON THE HOST</p>
+  <pre class="cs__code">pct set 107 -cores 8 -memory 6144
+pct fstrim 107     <span class="c"># hand freed blocks back to the thin pool</span></pre>
+
+  <h2 class="doc__h" id="next" data-toc>WHAT IS LEFT</h2>
+  <p>
+    The new ports still need status monitors, so the
+    <a href="https://lab.monk97.me">status page</a> sees them. Strata stays
+    parked until the host has more RAM, and the German model waits for
+    upstream llama.cpp support. When either changes, adding a model is a
+    download and three lines of config, which was the point.
+  </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p class="cs__cap">PROMPT: SHOULD I REPLACE OLLAMA?</p>
+  <pre class="cs__prompt">I run local models with Ollama on one GPU. Tell me, with measurements, whether llama.cpp behind llama-swap would be faster, and change nothing until I agree.
+
+- List my models with their size, architecture (dense or mixture of experts) and how much of each sits on the GPU.
+- Run llama-swap next to Ollama on another port. Download each model as the publisher's GGUF; do not assume Ollama's files will load.
+- Benchmark both with the same prompt (unique first line each run), fixed output length, greedy decoding, median of three, and only one engine on the GPU at a time.
+- For mixture-of-experts models that spill into RAM, compare automatic placement with --cpu-moe plus an expert cache.
+Report a table of tokens per second for each model and engine, and which models are not worth keeping on my card.</pre>
+
+  <h2 class="doc__h" id="series">THE SERIES</h2>
+  <ol class="series">
+    <li><a href="/writing/raspberry-pi">It started with a Raspberry Pi</a></li>
+    <li><a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network</a></li>
+    <li><a href="/writing/proxmox">Moving to Proxmox, one service per container</a></li>
+    <li><a href="/writing/cpu-upgrade">Four cores to sixteen</a></li>
+    <li><a href="/writing/backups">Sixteen days of backups that weren&#x27;t</a></li>
+    <li><a href="/writing/gpu">Choosing a 70-watt GPU</a></li>
+    <li><a href="/writing/ollama">Twelve cores and most of a GPU</a></li>
+    <li><a href="/writing/with-claude">Building the lab with an agent in the loop</a></li>
+    <li><span aria-current="page">One GPU, three containers, one owner</span></li>
+  </ol>
+
+  <div class="doc__foot">
+    <a href="/writing/with-claude">← Building the lab with an agent in the loop</a>
+    <a href="/writing/">writing →</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2730e92a" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>
