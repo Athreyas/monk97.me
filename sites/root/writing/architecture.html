@@ -41,7 +41,7 @@
 
   <p>
     Where the <a href="/writing/">series</a> ends up: one Proxmox host on a
-    home network, twelve guests each doing one job, storage split by whether
+    home network, fourteen guests each doing one job, storage split by whether
     losing it would matter, and two ways in. This page names the products and
     the roles. Addresses, hostnames and guest IDs stay private, and so does
     the list of what is still weak; that is a to-do list, not a map. The live
@@ -115,9 +115,13 @@
       <text x="352" y="321" class="map__t">filestash</text><text x="352" y="335" class="map__s">files, read-only</text>
 
       <rect x="511" y="264" width="159" height="36" rx="2" class="map__box map__box--hot"/>
-      <text x="519" y="279" class="map__t">gpu workbench</text><text x="519" y="293" class="map__s">ollama · webui · jupyter</text>
+      <text x="519" y="279" class="map__t">inference · gpu</text><text x="519" y="293" class="map__s">models, voice, images</text>
       <rect x="511" y="306" width="159" height="36" rx="2" class="map__box"/>
-      <text x="519" y="321" class="map__t">backup server</text><text x="519" y="335" class="map__s">proxmox backup server</text>
+      <text x="519" y="321" class="map__t">chat</text><text x="519" y="335" class="map__s">open webui, no gpu</text>
+      <rect x="511" y="348" width="159" height="36" rx="2" class="map__box"/>
+      <text x="519" y="363" class="map__t">workbench · gpu</text><text x="519" y="377" class="map__s">jupyter notebooks</text>
+      <rect x="511" y="390" width="159" height="36" rx="2" class="map__box"/>
+      <text x="519" y="405" class="map__t">backup server</text><text x="519" y="419" class="map__s">proxmox backup server</text>
 
       <text x="10" y="452" class="map__z">STORAGE ON THE HOST, AND OFF IT</text>
       <rect x="10" y="460" width="326" height="58" rx="2" class="map__box"/>
@@ -136,8 +140,8 @@
       <line x1="423" y1="342" x2="423" y2="458" class="map__ln-a" marker-end="url(#map-ma)"/>
       <path d="M511,282 H505 V440 H480 V458" class="map__ln-a" marker-end="url(#map-ma)"/>
       <text x="474" y="436" class="map__a" text-anchor="end">models</text>
-      <line x1="590" y1="342" x2="590" y2="458" class="map__ln" marker-end="url(#map-m)"/>
-      <text x="596" y="404" class="map__s">nightly</text>
+      <line x1="590" y1="426" x2="590" y2="458" class="map__ln" marker-end="url(#map-m)"/>
+      <text x="596" y="446" class="map__s">nightly</text>
       <path d="M670,489 H676 V111 H672" class="map__ln" marker-end="url(#map-m)"/>
     </svg>
     </div>
@@ -228,14 +232,16 @@
         <tr><td>documentation</td><td>LXC</td><td>MkDocs</td></tr>
         <tr><td>browser</td><td>LXC</td><td>an isolated remote browser</td></tr>
         <tr><td>files</td><td>LXC</td><td>Filestash, read-only</td></tr>
-        <tr class="is-pick"><td>gpu workbench</td><td>LXC + GPU</td><td>Ollama, Open WebUI, Jupyter; 12 cores</td></tr>
+        <tr class="is-pick"><td>inference</td><td>LXC + GPU</td><td>llama-swap with llama.cpp, Speaches, ComfyUI; owns the GPU (<a href="/writing/inference">part 8</a>)</td></tr>
+        <tr><td>chat</td><td>LXC</td><td>Open WebUI, no GPU</td></tr>
+        <tr><td>workbench</td><td>LXC + GPU</td><td>Jupyter, for short training runs</td></tr>
         <tr><td>backups</td><td>LXC</td><td>Proxmox Backup Server</td></tr>
         <tr><td>desktop</td><td>VM</td><td>a full Linux desktop over noVNC</td></tr>
       </tbody>
     </table>
   </div>
   <p>
-    Eleven containers and one VM on 32 threads and 64 GB. Each one can be
+    Thirteen containers and one VM on 32 threads and 64 GB. Each one can be
     snapshotted, backed up and restored on its own, which was the point of
     the whole rebuild.
   </p>
