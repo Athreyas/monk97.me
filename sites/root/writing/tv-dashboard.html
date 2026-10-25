@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>From a browser kiosk to a 3 MB TUI — Athreyas</title>
+<meta name="description" content="Putting the home lab's status on the living-room TV: a GPU that would not drive the screen, a status page that had been wrong for ten days, a browser kiosk that kept losing the signal, and the Rust TUI that replaced it.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/tv-dashboard">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=ef78b26b">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">tv-dashboard</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">From a browser kiosk to a 3 MB TUI.</h1>
+  <p class="doc__role">Part 9 · the living-room screen</p>
+  <div class="cs__meta">
+    <span>2026-10-25</span>
+    <span>home lab series · part 9 of 9</span>
+  </div>
+
+  <p>
+    The lab machine moved next to the living-room TV, which already had an
+    Apple TV on one input. The idea was simple: switch to the other input and
+    see, at a glance, whether everything in the lab is up. Getting there took
+    one afternoon and two complete attempts. The first was a web page in a
+    browser kiosk, which looked good and kept losing the signal. The second
+    was a terminal UI written in Rust, which uses 3 MB of memory and has not
+    dropped the picture so far.
+  </p>
+
+  <h2 class="doc__h" id="signal" data-toc>NO SIGNAL</h2>
+  <p>
+    The card is the slot-powered RTX PRO 2000 from <a href="/writing/gpu">part 5</a>.
+    It has only mini-DisplayPort outputs, so the TV is on the end of a passive
+    mini-DP (Thunderbolt) to HDMI cable. That cable had worked on a monitor.
+    On the TV: nothing.
+  </p>
+  <p>
+    Two separate problems turned up. The first was software. Since the
+    Proxmox install (<a href="/writing/proxmox">part 2</a>), the NVIDIA
+    driver's display module had been blacklisted, so the only picture the
+    host could ever make was the motherboard firmware's boot framebuffer:
+    1024&times;768, lit once at power-on, and blind to anything plugged in
+    later. Many TVs refuse 1024&times;768 over HDMI outright.
+  </p>
+  <p class="cs__cap">ON THE HOST: CHECK WHAT IS DRIVING THE SCREEN</p>
+  <pre class="cs__code">cat /etc/modprobe.d/*nvidia*            <span class="c"># blacklist nvidia_drm   &lt;- there it is</span>
+cat /proc/fb                            <span class="c"># 0 simpledrmdrmfb     &lt;- the firmware's framebuffer</span>
+for c in /sys/class/drm/card*-*; do echo "$(basename $c) $(cat $c/status)"; done</pre>
+  <p class="cs__cap">ON THE HOST: LET THE DRIVER OWN THE CONSOLE</p>
+  <pre class="cs__code">echo 'options nvidia-drm modeset=1 fbdev=1' &gt; /etc/modprobe.d/nvidia-drm.conf
+echo nvidia_drm &gt; /etc/modules-load.d/nvidia-drm.conf
+mv /etc/modprobe.d/blacklist-nvidia-drm.conf /root/      <span class="c"># keep it, just in case</span>
+update-initramfs -u</pre>
+  <p>
+    With mode-setting on, the driver owns the text console and follows
+    displays as they come and go. The second problem was physical. Through a
+    passive adapter, this TV's "I'm here" signal (hot-plug detect) flickers.
+    All four ports would read <code>disconnected</code> with the TV on and
+    on the right input, then <code>connected</code> a few minutes later.
+    Asking the GPU to look again usually found it:
+  </p>
+  <pre class="cs__code">echo detect &gt; /sys/class/drm/card1-DP-3/status
+cat /sys/class/drm/card1-DP-3/status     <span class="c"># connected</span></pre>
+  <p>
+    That became a small timer that probes again every 20 seconds whenever
+    nothing reads connected. The proper fix is an active adapter, which
+    makes its own signal instead of passing the TV's through. It is on the
+    shopping list.
+  </p>
+
+  <h2 class="doc__h" id="lied" data-toc>THE STATUS PAGE THAT LIED</h2>
+  <p>
+    While checking the public <a href="https://lab.monk97.me">status page</a>,
+    the GPU services showed as down, and had for ten days. Nothing was
+    broken. In <a href="/writing/inference">part 8</a> the model server and
+    the chat front end moved to new containers, but two monitors still
+    pointed at the old addresses. They had been faithfully reporting an empty
+    container ever since.
+  </p>
+  <p>
+    The fix kept the monitor names, so the public page and the history
+    stayed intact, and changed only the targets. It also added pings for the
+    new containers. The red stretch stays in the 90-day bars: it is what was
+    measured, and filling it in would be inventing data. The lesson cost
+    nothing to learn: when a service moves, its monitor moves in the same
+    change.
+  </p>
+
+  <h2 class="doc__h" id="kiosk" data-toc>FIRST TRY: A WEB PAGE IN A KIOSK</h2>
+  <p>
+    The obvious build was a full-screen browser on the host's console:
+    <code>cage</code>, a compositor that runs exactly one window, around
+    Firefox in kiosk mode. It started on the TV whenever a screen was
+    connected. Uptime Kuma's own status page was too long for a TV and
+    needed scrolling, so I wrote a single-screen page against the same
+    status-page API: every service as a tile with a status dot, its 24-hour
+    uptime and its last 40 checks, plus a "needs attention" panel. It fitted
+    1920&times;1080 exactly and looked good.
+  </p>
+  <p>
+    It also failed in three ways that turned out to share one cause:
+  </p>
+  <ul>
+    <li><strong>The TV went blank after a while</strong>, every time right after the kiosk restarted.</li>
+    <li><strong>Ctrl+Alt+F2 did nothing.</strong> The console switched underneath, but the screen kept showing the page.</li>
+    <li><strong>A workaround made it worse.</strong> A hotkey daemon that stopped the kiosk for a login prompt and started it again lost the TV completely after a few round trips.</li>
+  </ul>
+  <p>
+    Every hand-off between the compositor and the text console makes the
+    GPU re-train the link to the display, and this TV, behind a passive
+    adapter, often does not lock back on. Forcing the port "on" was worse:
+    with no TV detected, the GPU sends DisplayPort signalling, which a
+    passive adapter cannot turn into HDMI. The kiosk also cost about 1.6 GB
+    of RAM and 300 MB of graphics memory to draw a status page.
+  </p>
+
+  <h2 class="doc__h" id="tui" data-toc>SECOND TRY: TOWERVIEW</h2>
+  <p>
+    The text console itself had been reliable all along. When nothing takes
+    the display away, nothing re-trains. So the dashboard moved onto the
+    console: <strong>towerview</strong>, a terminal UI in Rust built on
+    <code>ratatui</code>. It logs in automatically on the first console as a
+    locked-down user and draws one screen:
+  </p>
+  <p class="cs__cap">TOWERVIEW, ONE FRAME (THE COMPACT 120&times;33 LAYOUT)</p>
+  <pre class="cs__code">╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ arttower  ·  lab   ALL 24 UP                  ● 24 up   ● 0 down   ● 0 pending              Sun 25 Oct  15:19   ↻ 0s │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭ ● host ───────── up 2h 49m ╮╭ ● gpu ─────── RTX PRO 2000 ╮╭ ● storage · network ───────╮╭ ● guests ─── 14/14 running ╮
+│ cpu   █░░░░░░░░░░░░░░   3% ││ util  ░░░░░░░░░░░░░░░   0% ││ root  █░░░░░  15% of 93.9G ││ kind  13 containers · 1 vm │
+│ ram   █░░░░░░░ 10.7G/62.7G ││ vram  ░░░░░░░░░░░░ 0.1/16G ││ nvme  █░░░░░░  15% of 915G ││ state all running          │
+│ load  0.45  2.04  1.86     ││ temp  37°C   6 W           ││ data  █░░░░░░  15% of 915G ││                            │
+│ temp  51°C                 ││ model idle                 ││ net   ↓ 300 kb/s    ↑ 52 k ││                            │
+│                            ││                            ││                            ││                            │
+╰────────────────────────────╯╰────────────────────────────╯╰────────────────────────────╯╰────────────────────────────╯
+╭ ● virtualisation ─────── 3 ╮╭ ● network &amp; dns ──────── 3 ╮╭ ● compute &amp; ai ───────── 5 ╮╭ ● storage &amp; backup ───── 3 ╮
+│ ● Proxmox VE      100% ■■■ ││ ● Reverse proxy   100% ■■■ ││ ● LLM inference   7.0% ■■■ ││ ● NAS             100% ■■■ │
+│ ● Guests         99.9% ■■■ ││ ● DNS             100% ■■■ ││ ● Speech          100% ■■■ ││ ● NFS share       100% ■■■ │
+│ ● Backups         100% ■■■ ││ ● TLS certs       100% ■■■ ││ ● Image gen       100% ■■■ ││ ● Files          98.8% ■■■ │
+│                            ││                            ││ ● Chat            7.0% ■■■ ││                            │
+│                            ││                            ││ ● Jupyter         100% ■■■ ││                            │
+│                            ││                            ││                            ││                            │
+│                            ││                            ││                            ││                            │
+╰────────────────────────────╯╰────────────────────────────╯╰────────────────────────────╯╰────────────────────────────╯
+╭ ● observability ──────── 3 ╮╭ ● media &amp; home ───────── 2 ╮╭ ● remote access ──────── 5 ╮╭ ● needs attention ─────────╮
+│ ● Uptime Kuma     100% ■■■ ││ ● Jellyfin        100% ■■■ ││ ● Browser        98.8% ■■■ ││ all quiet                  │
+│ ● Netdata         100% ■■■ ││ ● Homebridge      100% ■■■ ││ ● IT tools        100% ■■■ ││ nothing failed in recent c │
+│ ● Logs            100% ■■■ ││                            ││ ● Desktop VM     92.0% ■■■ ││                            │
+│                            ││                            ││ ● Sign-in        98.8% ■■■ ││                            │
+│                            ││                            ││ ● Docs            100% ■■■ ││                            │
+│                            ││                            ││                            ││                            │
+│                            ││                            ││                            ││                            │
+│                            ││                            ││                            ││                            │
+╰────────────────────────────╯╰────────────────────────────╯╰────────────────────────────╯╰────────────────────────────╯
+╭ ● recent ───────────────────────────────────────────────────────────────────────────────────────────────── 14 events ╮
+│ ● 13:58 started omarchy-desktop (108)    ● 12:31 started open-webui (113)    ● 12:31 started inference (112)         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  s root shell     r redraw     ctrl+alt+f2 root login     ctrl+alt+f1 back to towerview                                </pre>
+  <p>
+    It shows the same Uptime Kuma data as the web page, plus what a browser
+    page could not easily see. Host CPU, memory, load and temperature come
+    straight from <code>/proc</code>. GPU load, memory, temperature and
+    power come from <code>nvidia-smi</code>, along with which model the
+    model server has loaded. It also shows disk use, network throughput, the
+    guest list, and a bottom strip of recent activity: backups and guest
+    starts from the Proxmox task log, and pushes to this site's repository.
+  </p>
+  <p class="cs__cap">ON THE HOST: THE FIRST CONSOLE LOGS STRAIGHT INTO IT</p>
+  <pre class="cs__code"><span class="c"># /etc/systemd/system/getty@tty1.service.d/autologin.conf</span>
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin kiosk --noclear --noissue %I $TERM
+
+<span class="c"># the kiosk user's login shell is the dashboard; if it exits, getty logs in again</span>
+usermod -s /usr/local/bin/towerview kiosk
+
+<span class="c"># /etc/sudoers.d/towerview: guest lists and the task log, nothing more</span>
+kiosk ALL=(root) NOPASSWD: /usr/sbin/pct list, /usr/sbin/qm list, \
+    /usr/bin/pvesh get /nodes/arttower/tasks --limit 50 --output-format json</pre>
+  <p>
+    The host has no Rust toolchain and does not need one. The binary is built
+    in a throwaway <code>rust:alpine</code> container on the inference box,
+    which already runs Docker, as a single static file. A
+    <code>--snapshot</code> flag renders one frame as text with live data,
+    which is how the layout was checked at the TV's exact size before each
+    deploy (and how the frame above was made).
+  </p>
+  <p>
+    Two console details mattered. Terminus Bold at 12&times;24 gives a
+    160&times;45 grid at 1080p, readable from the sofa and roomy enough to
+    breathe. And the Linux console draws bold text in the <em>bright</em>
+    palette slot, so the first version's bold headings came out in colours
+    I never chose. Now nothing is bold (the font already is), and the
+    program paints the console's sixteen colours itself.
+  </p>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>MEASURED</th><th>BROWSER KIOSK</th><th>TOWERVIEW</th></tr></thead>
+      <tbody>
+        <tr class="is-pick"><td>memory</td><td>~1.6 GB</td><td>3.0 MB</td></tr>
+        <tr><td>graphics memory</td><td>~300 MB</td><td>none</td></tr>
+        <tr><td>on disk</td><td>Firefox, cage and 72 dependency packages</td><td>one 2.2 MB file</td></tr>
+        <tr><td>switch to a root login</td><td>did not work</td><td>Ctrl+Alt+F2, instant</td></tr>
+        <tr><td>signal drops</td><td>after every restart</td><td>none so far</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Ctrl+Alt+F2 now gives a normal root login and Ctrl+Alt+F1 comes back.
+    Both are switches between two text consoles, which the kernel does
+    without touching the link. Pressing <code>s</code> inside towerview opens
+    a root shell on the spot, and <code>exit</code> returns to the dashboard.
+    The browser setup is removed and archived with notes on why it failed.
+    The web page still exists for any browser at home; it is just not what
+    the TV shows.
+  </p>
+
+  <h2 class="doc__h" id="next" data-toc>WHAT IS LEFT</h2>
+  <p>
+    An active mini-DP to HDMI adapter, so the TV stops dropping its signal at
+    all and gains 4K and sound. Beyond that, why a terminal UI beat a web page
+    here is a bigger question than one TV, and it gets its own post.
+  </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p class="cs__cap">PROMPT: MY SERVER WILL NOT DRIVE THE TV</p>
+  <pre class="cs__prompt">My home server (Proxmox, NVIDIA GPU) shows no picture on a TV connected through a mini-DisplayPort to HDMI cable. Find out why with read-only checks first, and change nothing until I agree.
+
+- Which kernel driver owns the console (/proc/fb, lsmod), and whether nvidia_drm is blacklisted or loaded without modeset.
+- What each GPU output reports (/sys/class/drm/card*-*/status), and whether a re-probe (echo detect) changes it.
+- Whether the cable is a passive or an active adapter, and what that means if I force the output on.
+- What resolution the console uses, and whether a TV would accept it.
+Then propose the smallest fix, and how to make it survive a reboot.</pre>
+
+  <h2 class="doc__h" id="series">THE SERIES</h2>
+  <ol class="series">
+    <li><a href="/writing/raspberry-pi">It started with a Raspberry Pi</a></li>
+    <li><a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network</a></li>
+    <li><a href="/writing/proxmox">Moving to Proxmox, one service per container</a></li>
+    <li><a href="/writing/cpu-upgrade">Four cores to sixteen</a></li>
+    <li><a href="/writing/backups">Sixteen days of backups that weren&#x27;t</a></li>
+    <li><a href="/writing/gpu">Choosing a 70-watt GPU</a></li>
+    <li><a href="/writing/ollama">Twelve cores and most of a GPU</a></li>
+    <li><a href="/writing/with-claude">Building the lab with an agent in the loop</a></li>
+    <li><a href="/writing/inference">One GPU, three containers, one owner</a></li>
+    <li><span aria-current="page">From a browser kiosk to a 3 MB TUI</span></li>
+  </ol>
+
+  <div class="doc__foot">
+    <a href="/writing/inference">← One GPU, three containers, one owner</a>
+    <a href="/writing/">writing →</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2730e92a" defer></script>
+<script src="/assets/site.js?v=478a394b" defer></script>
+</body>
+</html>
