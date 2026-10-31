@@ -47,6 +47,8 @@ so links behave locally the way they will in production.
     python3 scripts/make-fixture.py    # regenerate the sample feed
     python3 scripts/check-css.py       # every class in the HTML has a rule
     node    scripts/check-render.mjs   # each status view actually draws
+    node    scripts/check-prompt.mjs   # the `/` prompt answers the same on every page
+    bash    scripts/sync-shared.sh     # copy the prompt engine to the lab (--check to verify)
     python3 scripts/stamp-assets.py    # content-hash asset URLs (before deploy)
 
 The résumé PDF (`sites/root/athreyas-yelishetti-resume.pdf`) is `/resume`
