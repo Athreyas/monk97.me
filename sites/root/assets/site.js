@@ -200,21 +200,56 @@
     return String(s).replace(/[<>&]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]; });
   };
 
+  /* Where things are, in one place. Commands read these rather than the
+   * page's markup, so every page answers the same way — most pages carry
+   * none of these links. */
+  var LINKS = {
+    github:   'https://github.com/athreyas',
+    linkedin: 'https://www.linkedin.com/in/athreyas/',
+    email:    'mailto:hey@monk97.me',
+    source:   'https://github.com/Athreyas/monk97.me'
+  };
+  var PAGES = [
+    ['home',     '/',          'the front page'],
+    ['work',     '/work/',     'selected work and a case study'],
+    ['writing',  '/writing/',  'the home lab, rebuilt, as a series'],
+    ['projects', '/projects/', 'things built on the side'],
+    ['resume',   '/resume',    'the long version']
+  ];
+  var HOME = function () { return (window.__site && window.__site.home) || ''; };   /* another host, or this one */
+  var norm = function (p) { return p.replace(/(index)?\.html$/, '').replace(/\/$/, '') || '/'; };
+  var isHere = function (path) { return !HOME() && norm(location.pathname) === norm(path); };
+  var page = function (name) {
+    for (var i = 0; i < PAGES.length; i++) if (PAGES[i][0] === name) return PAGES[i];
+    return null;
+  };
+  var goTo = function (name) {
+    var p = page(name);
+    if (isHere(p[1])) { window.scrollTo(0, 0); return print('you are looking at it.'); }
+    print('opening ' + name + '…');
+    setTimeout(function () { location.href = HOME() + p[1]; }, 350);
+  };
+
   var openLink = function (which) {
-    var el = $('[data-link="' + which + '"]');
-    if (!el) { print(which + ': no link on this page.'); return; }
     print('→ ' + which);
-    window.open(el.href, '_blank', 'noopener');
+    if (which === 'email') location.href = LINKS.email;
+    else window.open(LINKS[which], '_blank', 'noopener');
   };
 
   var BOOTED = Date.now();
 
   var MAN = {
-    ls:       'ls — list the sections of this page.',
-    cd:       'cd <section> — scroll to one. `cd` alone goes to the top.',
+    ls:       'ls — the pages on this site; the one you are on is starred.',
+    cd:       'cd <page> — go to one. `cd` alone goes to the top of this one.',
     whoami:   'whoami — what your browser volunteered about you. Not much.',
     home:     'home — back to the front page.',
+    work:     'work — selected work and a case study.',
+    writing:  'writing — the home lab, rebuilt, as a series.',
+    projects: 'projects — things built on the side.',
     resume:   'resume — the long version, on its own page.',
+    github:   'github — opens the profile in a new tab.',
+    linkedin: 'linkedin — opens the profile in a new tab.',
+    email:    'email — opens your mail client.',
     theme:    'theme [auto|light|dark] — no argument cycles.',
     settings: 'settings [name] [value] — theme and motion. No argument lists them; `settings reset` clears.',
     lab:      'lab — live service health for the home lab. Opens in a new tab.',
@@ -224,7 +259,7 @@
     echo:     'echo <words> — says them back. That is the whole feature.',
     history:  'history — what you have typed. Up and down arrows work too.',
     man:      'man <command> — you are doing it.',
-    weather:  'weather — conditions where you are. Geolocated from your IP by wttr.in; nothing is stored.',
+    weather:  'weather — conditions where you are. Geolocated from your IP by geojs, read from Open-Meteo; nothing is stored.',
     fortune:  'fortune — a dry line, chosen at random.',
     whois:    'whois — the registration facts, such as they are.',
     contact:  'contact — the fastest way to reach a human here.',
@@ -262,15 +297,15 @@
       print('  <span class="console__dim">`man &lt;command&gt;` for detail · ↑ ↓ for history · tab completes</span>');
     },
     ls: function () {
-      print(sections.map(function (s) { return s.getAttribute('data-nav'); }).join('  ') || '(nothing here)');
+      print(PAGES.map(function (p) { return isHere(p[1]) ? p[0] + '*' : p[0]; }).join('  ') + '  lab');
+      print('  <span class="console__dim">`cd &lt;page&gt;` to go · * is where you are</span>');
     },
     cd: function (arg) {
-      if (!arg) { jumpTo(0); return print('→ top'); }
-      var names = sections.map(function (s) { return s.getAttribute('data-nav'); });
-      var i = names.indexOf(String(arg).replace(/^\/+/, ''));
-      if (i < 0) return print('cd: no section named ' + esc(arg) + '. try `ls`.');
-      jumpTo(i);
-      print('→ ' + esc(arg));
+      if (!arg || arg === '.') { window.scrollTo(0, 0); return print('→ top'); }
+      var name = String(arg).toLowerCase().replace(/^[~\/.]+|\/+$/g, '') || 'home';
+      if (name === 'lab') return COMMANDS.lab();
+      if (!page(name)) return print('cd: no page named ' + esc(arg) + '. try `ls`.');
+      goTo(name);
     },
     pwd: function () { print(location.hostname + location.pathname); },
     whoami: function () {
@@ -299,21 +334,13 @@
     echo: function (arg, rest) { print(esc(rest || arg || '')); },
     source: function () {
       print('static files, all of them. view-source works, and so does this:');
-      var gh = $('[data-link="github"]');
-      if (gh) print('  <a href="' + gh.href + '" target="_blank" rel="noopener">' + esc(gh.href) + '</a>');
+      print('  <a href="' + LINKS.source + '" target="_blank" rel="noopener">' + esc(LINKS.source) + '</a>');
     },
-    home: function () {
-      var H = (window.__site && window.__site.home) || '';   /* another host, or this one */
-      if (!H && location.pathname === '/') { jumpTo(0); return print('already home.'); }
-      print('going home…');
-      setTimeout(function () { location.href = H + '/'; }, 350);
-    },
-    resume: function () {
-      var H = (window.__site && window.__site.home) || '';
-      if (!H && location.pathname.indexOf('/resume') === 0) return print('you are looking at it.');
-      print('opening resume…');
-      setTimeout(function () { location.href = H + '/resume'; }, 350);
-    },
+    home:     function () { goTo('home'); },
+    work:     function () { goTo('work'); },
+    writing:  function () { goTo('writing'); },
+    projects: function () { goTo('projects'); },
+    resume:   function () { goTo('resume'); },
     github:   function () { openLink('github'); },
     linkedin: function () { openLink('linkedin'); },
     email:    function () { openLink('email'); },
@@ -422,10 +449,9 @@
     },
 
     tree: function () {
-      print('monk97.me\n' +
-            '├── /            this page\n' +
-            '├── /resume      the long version\n' +
-            '└── lab.         live service health <span class=\"console__dim\">(`lab`)</span>');
+      print('monk97.me\n' + PAGES.map(function (p) {
+        return '├── ' + (p[1] + '            ').slice(0, 13) + p[2];
+      }).join('\n') + '\n└── lab.         live service health <span class="console__dim">(`lab`)</span>');
     },
 
     ping: function () {
@@ -446,9 +472,8 @@
     },
 
     contact: function () {
-      var e = $('[data-link="email"]');
       print('email is the fastest. I read it, eventually.');
-      if (e) print('  <a href="' + e.href + '">' + esc(e.href.replace('mailto:', '')) + '</a>');
+      print('  <a href="' + LINKS.email + '">' + esc(LINKS.email.replace('mailto:', '')) + '</a>');
       print('  <span class="console__dim">`resume` for the long version · `linkedin` if you must</span>');
     },
 
@@ -593,6 +618,15 @@
     if (con && con.classList.contains('is-open')) return;
 
     if (e.key === '/') { e.preventDefault(); openConsole(); return; }
+
+    /* No page carries [data-nav] sections today; g and G still mean top
+     * and bottom, and j and k are left alone rather than swallowed. */
+    if (!sections.length) {
+      var by = still ? 'auto' : 'smooth';
+      if (e.key === 'g') { e.preventDefault(); window.scrollTo({ top: 0, behavior: by }); }
+      if (e.key === 'G') { e.preventDefault(); window.scrollTo({ top: document.documentElement.scrollHeight, behavior: by }); }
+      return;
+    }
     if (e.key === 'j') { e.preventDefault(); jumpTo(Math.min(currentIdx + 1, sections.length - 1)); return; }
     if (e.key === 'k') { e.preventDefault(); jumpTo(Math.max(currentIdx - 1, 0)); return; }
     if (e.key === 'g') { e.preventDefault(); jumpTo(0); return; }
