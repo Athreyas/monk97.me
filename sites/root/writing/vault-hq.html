@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Keeping the notes, replacing the app — Athreyas</title>
+<meta name="description" content="Vault HQ: a local, terminal-style front end over a folder of markdown notes that people and agents both write to. Why Obsidian stopped being the place to use it, the conventions underneath, local-only search, and the engineering that keeps every writer safe.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/vault-hq">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=ef78b26b">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">vault-hq</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">Keeping the notes, replacing the app.</h1>
+  <p class="doc__role">Vault HQ · a front end for a second brain</p>
+  <div class="cs__meta">
+    <span>2026-10-28 → 2026-11-02</span>
+    <span>not part of the home lab series</span>
+  </div>
+
+  <p>
+    My notes live in one folder of plain markdown: projects, references, daily
+    notes, and a steady stream of things that agents write there on my behalf.
+    The files work well. Obsidian, the app I opened them in, stopped being the
+    right place to <em>use</em> them. So I kept the files and replaced the
+    front end with <strong>Vault HQ</strong>, a small local app that reads the
+    folder and shows what needs me. This is how the folder is organised, what
+    HQ does on top of it, and the parts that took some care.
+  </p>
+  <p>
+    <span class="ask">[screenshot: Home view]</span>
+  </p>
+
+  <h2 class="doc__h" id="why" data-toc>WHY NOT JUST OBSIDIAN</h2>
+  <p>
+    The folder had grown into structured data. Each daily note carries metric
+    properties and an agent log, tasks are kept in sync with Taskwarrior, and
+    repeated jobs keep findings files. Obsidian shows all of that as files to
+    open. Three things kept getting in the way:
+  </p>
+  <ul>
+    <li><strong>Search found words, not meaning.</strong> If I didn't remember how I had phrased something, I didn't find it.</li>
+    <li><strong>The layout didn't show what needed attention.</strong> An overdue task, a proposal waiting on a yes or no, or an inbox capture going stale all looked like any other file.</li>
+    <li><strong>It was a place to look, not to act.</strong> Finishing a task, deciding something or sorting the inbox meant opening files and editing them by hand.</li>
+  </ul>
+  <p>
+    The markdown itself was never the problem, so nothing about the storage
+    changed. HQ is a different window onto the same files. Obsidian can still
+    open every note, and HQ has a key that does exactly that.
+  </p>
+
+  <h2 class="doc__h" id="brain" data-toc>THE BRAIN UNDERNEATH</h2>
+  <p>
+    The vault is one folder with a fixed layout. Every top-level folder has a
+    purpose, and every folder carries its own <code>AGENTS.md</code> with the
+    rules for writing there.
+  </p>
+  <p class="cs__cap">THE LAYOUT</p>
+  <pre class="cs__code">00-Inbox/        <span class="c"># raw captures and session summaries; sorted weekly</span>
+01-Projects/     <span class="c"># one living note per project</span>
+03-Learning/     <span class="c"># guides and how-tos</span>
+04-Personal/     <span class="c"># mine alone</span>
+05-References/   <span class="c"># runbooks, designs, findings for repeated jobs</span>
+06-Memory/       <span class="c"># shared agent memory: session logs and atomic facts</span>
+07-Agents/       <span class="c"># how each agent is wired to the vault</span>
+08-Archive/      <span class="c"># sorted and done</span>
+09-Planning/     <span class="c"># daily notes, weekly plans, the tasks inbox</span>
+_templates/      <span class="c"># one template per kind of note</span>
+_tools/          <span class="c"># the automation, installed from here</span>
+AGENTS.md        <span class="c"># the contract every writer reads first</span></pre>
+  <p>
+    Several writers share this folder: me, Claude Code, Cursor, and a handful
+    of scripts. That only works because they all follow one contract, the root
+    <code>AGENTS.md</code>. Its central idea is <strong>zones</strong>, which
+    decide whose words a note holds:
+  </p>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>ZONE</th><th>WHERE</th><th>AGENTS MAY</th></tr></thead>
+      <tbody>
+        <tr><td>human</td><td>04-Personal, 09-Planning, any note with <code>author: human</code></td><td>read, link, move or copy. Never write or edit. A change is proposed as a <code>proposal-</code> note in the inbox instead.</td></tr>
+        <tr><td>shared</td><td>01-Projects, 03-Learning, 05-References, 07-Agents</td><td>edit in place, keeping my wording and decisions intact</td></tr>
+        <tr><td>machine</td><td>00-Inbox, 06-Memory, _tools</td><td>anything, within the naming and frontmatter rules</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The reason is plain. AI tends to smooth and summarise, and my own words
+    should stay exactly as I wrote them. The contract adds a few rules any
+    writer can follow: search for an existing note before creating one, copy
+    a template rather than invent a structure, name files in lowercase kebab
+    case, fill every frontmatter field including <code>author</code>, and
+    never write a secret into the vault, because it syncs to iCloud. A lint
+    script checks the result. After any meaningful action, an agent appends
+    one line to that day's note, under a heading that belongs to machines:
+  </p>
+  <pre class="cs__code">## Agent log
+- 14:05 claude@mac · site · drafted the vault-hq post → [[vault-hq-design]]</pre>
+  <p class="cs__cap">AUTOMATION, INSTALLED FROM THE VAULT ITSELF</p>
+  <p>
+    The scripts live in the vault's <code>_tools/automation/</code>, and one
+    installer wires them into the Mac. The vault the installer sits in is the
+    vault that Mac serves. The installed copy is the one that runs, so an
+    iCloud file that has been evicted can never break a hook. It sets up four
+    things:
+  </p>
+  <ul>
+    <li><strong>Claude Code hooks.</strong> When a session ends or its context is compacted, a digest of the session goes into <code>00-Inbox/</code>, with a short summary written by a model, and a line goes into the day's agent log. Only prompts added since the last capture are written, so running it again never duplicates anything.</li>
+    <li><strong>A two-way Taskwarrior sync.</strong> Checkboxes in notes are the tasks, and Taskwarrior is the fast way to work through them. Each synced checkbox carries an id (<code>🆔 a1b2c3</code>) that matches a field on the Taskwarrior task. Conflicts are resolved three ways against the last synced snapshot. A field changed on one side wins. Changed on both sides, the vault wins. A Taskwarrior hook runs the sync after every change, so a task finished in the terminal is ticked in its note within seconds.</li>
+    <li><strong>Daily metrics.</strong> A script writes numbers into the frontmatter of each daily note: vault and task counts, the lab's health (read from this site's public <a href="https://lab.monk97.me">status feed</a>), and photo-sorting progress on the NAS. The collectors are deterministic, with no model involved, so one note is one row of a time series and one property is one column.</li>
+    <li><strong>A launchd tick</strong> every 5 minutes runs the task sync, and runs the metrics when the last run is over 55 minutes old. macOS privacy controls refuse bare launchd jobs a listing of iCloud Drive, so the tick runs inside a small helper app that holds the needed permission, and everything it starts inherits it.</li>
+  </ul>
+  <p>
+    Because every writer uses the same folders, templates and log, knowledge
+    lands in one place whichever tool produced it. Two conventions make that
+    safe when writers overlap. Every script opens a vault file under the same
+    exclusive file lock (<code>flock</code>), so two writers never interleave
+    in one note. And tasks carry ids, so a task can be renamed, re-dated or
+    moved without the sync losing track of it.
+  </p>
+
+  <h2 class="doc__h" id="hq" data-toc>HQ ON TOP</h2>
+  <p>
+    HQ is a local web app with a terminal look: tabs on number keys, a legend
+    at the bottom showing the current view's keys, monospace throughout. The
+    type follows the zones. My own words are set in IBM Plex Mono and machine
+    output in JetBrains Mono, so a glance tells you who wrote a line.
+  </p>
+  <ul>
+    <li><strong>Home</strong> shows every panel at once: focus, what needs me, the inbox, the day's trail, tomorrow and projects, under an ask prompt, with a date picker for any day.</li>
+    <li><strong>Needs you</strong> is a queue of decisions. Each one is recorded with my reasoning.</li>
+    <li><strong>Days</strong> has day, 3-day and week views, with boxes for my own Quick Wins, Work, Learning and Tomorrow lines.</li>
+    <li><strong>Tasks</strong> and <strong>Inbox</strong> show Taskwarrior tasks and the captures waiting to be sorted.</li>
+    <li><strong>Notes</strong> reads and edits any note, with tables, code and callouts rendered, <code>[[links]]</code> followed in place, and the notes linking back listed under each one.</li>
+    <li><strong>Ask</strong> searches and questions the notes, described next.</li>
+  </ul>
+  <p>
+    <strong>Ctrl K</strong> opens a palette to jump to any view, day or note,
+    ask a question, or capture a thought into today's inbox note.
+    <strong>⌘,</strong> opens Settings.
+  </p>
+  <p>
+    <span class="ask">[screenshot: Needs you, one decision open]</span>
+    <span class="ask">[screenshot: Days, week view]</span>
+    <span class="ask">[screenshot: Ctrl K palette]</span>
+  </p>
+  <p>
+    Needs you is the view I wanted most, and it has no model in it. What
+    lands in the queue is decided by fixed rules in one file:
+  </p>
+  <ul>
+    <li>an overdue task;</li>
+    <li>a high-priority task due within 3 days;</li>
+    <li>an agent's proposal to change a note in my zone;</li>
+    <li>an inbox capture older than 2 days;</li>
+    <li>an automation error in the last 24 hours;</li>
+    <li>a project marked active but untouched for 14 days.</li>
+  </ul>
+  <p>
+    The order comes from the same rules (the later a task, the higher it
+    sits), so it can be explained and does not shift between visits. Every
+    answer, whether done, move to next week, drop, accept, decline or pause,
+    is appended to a decision log in my zone with the outcome and a "why" in
+    my own words. Snoozing is the one answer that skips the decision log.
+  </p>
+  <p>
+    Underneath, the server is Node 25 running TypeScript directly, with no
+    build step. It listens on <code>localhost</code> only and keeps no
+    database: the vault and Taskwarrior are the only stores. The two
+    exceptions are snoozes and the search index's embedding cache, kept
+    beside the automation's state. Every task change goes through the
+    <code>task</code> command, so Taskwarrior's own hook carries it back into
+    the note, and there is one write path for tasks. Every write request must
+    carry a custom header and come from the same origin, so no other website
+    open in the browser can drive it. Every vault write HQ makes lives in one
+    file, so the whole write surface can be read in one sitting.
+  </p>
+
+  <h2 class="doc__h" id="local" data-toc>LOCAL MODELS ONLY</h2>
+  <p>
+    Ask is the meaning-based search Obsidian lacked, and it runs on Ollama on
+    the Mac. Search works in three steps:
+  </p>
+  <ul>
+    <li><strong>Chunk.</strong> Every note is split into heading-sized chunks, and long sections are cut into overlapping pieces so each chunk stays a focused, embeddable size.</li>
+    <li><strong>Rank.</strong> Chunks are ranked by a blend of BM25, which matches exact words, and cosine similarity from <code>nomic-embed-text</code> embeddings, which matches meaning. The weighting is 45% words and 55% meaning. Project notes count a little more and old session logs a little less, because living notes describe the present. No note may supply more than three chunks.</li>
+    <li><strong>Answer.</strong> The top 8 chunks go to a local chat model, <code>llama3.1:8b</code> by default, at a low temperature. It is told to answer only from the excerpts, to let the most recent date win when they disagree, and to cite every fact as a <code>[[note]]</code> link.</li>
+  </ul>
+  <p>
+    Small models sometimes write "Excerpt 3" despite being told to cite, so
+    those references are rewritten into the matching note link before the
+    answer is shown. The chunks the model read are listed under every answer,
+    and <strong>Search notes</strong> skips the model and returns the ranked
+    chunks alone. Embeddings are cached by a hash of each chunk, so only new
+    or changed text is embedded again.
+  </p>
+  <p>
+    <span class="ask">[screenshot: Ask, an answer with its sources]</span>
+  </p>
+  <p>
+    Settings lets me change the model server and the models, but it accepts
+    only an address on this Mac or the home network: plain
+    <code>http://</code>, a loopback or private-range address or a
+    <code>.local</code> name, and no path. Nothing in HQ talks to a cloud model,
+    so the notes never leave the house to be searched or answered. (The
+    wider setup does use a hosted model in one place: the short session
+    summary that the Claude Code hook writes, about a session that already
+    ran in Claude.)
+  </p>
+  <p class="cs__cap">ON THE MAC: THE TWO MODELS</p>
+  <pre class="cs__code">ollama pull llama3.1:8b        <span class="c"># answers</span>
+ollama pull nomic-embed-text   <span class="c"># meaning, for search</span></pre>
+
+  <h2 class="doc__h" id="details" data-toc>THE PARTS THAT TOOK CARE</h2>
+
+  <p class="cs__cap">SAVING A NOTE WITHOUT CLOBBERING ANOTHER WRITER</p>
+  <p>
+    The first design note said HQ would not be an editor; long writing would
+    stay in Obsidian. That lasted five days. Once notes could be read in HQ,
+    going elsewhere to fix a typo was the friction HQ existed to remove. But
+    a note can change underneath an open editor at any moment: an agent
+    appends a line, the task sync ticks a box, iCloud brings in an edit from
+    another device.
+  </p>
+  <p>
+    So the editor starts from the file's exact text and its SHA-256. A save
+    sends both back. Under the same file lock every other vault writer uses,
+    the server reads the file again, and refuses the save if the hash no
+    longer matches. HQ then shows what changed and lets me choose. Unsaved
+    text is kept as a draft per note in the meantime.
+  </p>
+  <p class="cs__cap">THE SAVE, SIMPLIFIED (THE REAL ONE ALSO BUMPS <code>updated:</code>)</p>
+  <pre class="cs__code">with open(path, "r+") as f:
+    fcntl.flock(f, fcntl.LOCK_EX)          <span class="c"># the lock every vault writer takes</span>
+    cur = f.read()
+    if sha256(cur) != base:                <span class="c"># changed since the editor read it</span>
+        return conflict(cur)               <span class="c"># show it; never overwrite blind</span>
+    f.seek(0); f.truncate(); f.write(new)  <span class="c"># in place, not by rename</span></pre>
+  <p>
+    The last line goes against the usual advice. The safe way to replace a
+    file is normally to write a new one and rename it over the old. Here
+    that would be wrong. The lock belongs to the open file, not its name. A
+    writer that already holds the lock on the old file would keep writing
+    into a file that no longer has a name, and its change would be lost. So
+    the save truncates and writes the same file, under the same lock. Saves
+    can also only reach notes the vault scan already found. The path is
+    never built from the request, so an edit can't escape the folder.
+  </p>
+
+  <p class="cs__cap">WHEN macOS REFUSED TO READ THE NOTES</p>
+  <p>
+    HQ started in a terminal, and then moved into a LaunchAgent so it would
+    always be running. Under launchd it is a background process, and macOS
+    refused it reads of iCloud files that were not stored locally. The read
+    failed with <code>Unknown system error -11</code> (<code>EDEADLK</code>),
+    and one failed read blanked every view.
+  </p>
+  <p>
+    The fix was a Finder setting: right-click the vault folder and choose
+    <strong>Keep Downloaded</strong>, which keeps every note inside stored on
+    the Mac. The lasting change was in the code. The scan now skips a note it
+    can't read, and the top bar says "N notes unreadable", with the list on
+    hover. One bad file can no longer take the whole page down with it. The
+    automation's settings file is now read from the installer's local copy,
+    so the lab and NAS cards don't depend on iCloud being reachable.
+  </p>
+
+  <p class="cs__cap">A 4.6 MB NATIVE APP AROUND THE SAME PAGE</p>
+  <p>
+    A browser tab is easy to lose, so HQ also has a native Mac app, built
+    with Tauri. It is a Rust shell around the same interface, which it loads
+    from the local server. On disk it is 4.6 MB (<code>du -sh</code> on the
+    installed app, with a release build that is size-optimised, link-time
+    optimised and stripped). It adds what a tab can't do:
+  </p>
+  <ul>
+    <li>a menu-bar icon, and closing the window only hides it;</li>
+    <li>a global hotkey, <strong>⌃⌥Space</strong>, that brings HQ forward with the palette open, and puts it away again if it is already in front;</li>
+    <li>open at login, on by default the first time;</li>
+    <li>starting the HQ service if it isn't answering.</li>
+  </ul>
+  <p>
+    The page gets no native access at all. Tauri can expose native functions
+    to the page through its IPC bridge, and HQ grants none. Any link that
+    isn't the local server is handed to macOS, so the web opens in the
+    browser and a note link opens in Obsidian. The window can only ever show
+    HQ.
+  </p>
+  <p>
+    <span class="ask">[screenshot: menu-bar icon and its menu]</span>
+  </p>
+
+  <p class="cs__cap">PERSONAL CODE IN ONE FILE</p>
+  <p>
+    My work notes live on a separate machine, in a separate vault, and never
+    mix with these. That machine runs its own copy of HQ, and each copy reads
+    exactly one vault, the one its installer recorded. The few features that
+    only make sense at home, such as the lab and NAS cards, live in a single
+    file that HQ loads only if it exists. Each one also stays off unless the
+    vault's own settings list it. The export script copies HQ without that
+    file, without git history, and without builds, and it fails if a
+    personal term is still in the copy. It is the only supported way to move
+    HQ to another machine. Settings can also refuse to open a vault before
+    reading anything inside it.
+  </p>
+
+  <h2 class="doc__h" id="numbers" data-toc>BY THE NUMBERS</h2>
+  <p>
+    Everything here comes from the repository or a command run against it on
+    2026-11-02.
+  </p>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>WHAT</th><th>VALUE</th><th>HOW IT WAS COUNTED</th></tr></thead>
+      <tbody>
+        <tr><td>first commit</td><td>2026-10-28</td><td><code>git log</code></td></tr>
+        <tr><td>commits</td><td>9, the last on 2026-11-02</td><td><code>git log</code></td></tr>
+        <tr><td>server</td><td>2,097 lines of TypeScript</td><td><code>wc -l</code>, the personal file left out</td></tr>
+        <tr><td>interface</td><td>4,807 lines of TypeScript, TSX and CSS</td><td><code>wc -l</code></td></tr>
+        <tr><td>native shell</td><td>237 lines of Rust</td><td><code>wc -l</code></td></tr>
+        <tr class="is-pick"><td>native app on disk</td><td>4.6 MB</td><td><code>du -sh</code> on the installed app</td></tr>
+        <tr><td>runtime dependencies</td><td>3: React, React DOM, Zod</td><td><code>package.json</code></td></tr>
+        <tr><td>chunks sent to the model</td><td>8</td><td>the search code</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The design note's first check, on 2026-10-28, recorded a task added in HQ
+    and then dropped, which reached Taskwarrior and the note in about 5
+    seconds, and a cited answer from the vault in about 50 seconds on the
+    default 8B model.
+  </p>
+
+  <h2 class="doc__h" id="limits" data-toc>LIMITS, AND WHAT IS NEXT</h2>
+  <ul>
+    <li><strong>The phone is still Obsidian.</strong> HQ is Mac only, by decision. On the phone I read and write the same files in Obsidian.</li>
+    <li><strong>An 8B model sometimes prefers an older fact.</strong> The prompt tells it the newest date wins, and it doesn't always listen. The sources under each answer are the thing to trust.</li>
+    <li><strong>iCloud evictions are slow to recover from.</strong> The first load after iCloud evicts the notes takes about two minutes while they download again, unless the folder is kept downloaded.</li>
+    <li><strong>The first question after a change</strong> embeds the new chunks. That takes about a minute for the whole vault and seconds after that.</li>
+  </ul>
+  <p>
+    Next is moving the server into Rust, so the app and the thing it shows
+    become one program.
+  </p>
+  <p>
+    The design began from <span class="ask">[credit: the second-brain video and its author]</span>.
+    The ideas were his; the design and code here are our own.
+  </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p class="cs__cap">PROMPT: AN AGENT CONTRACT FOR MY NOTES FOLDER</p>
+  <pre class="cs__prompt">My notes are a folder of markdown files that I and several AI agents write to. Read the folder's structure (not the content of personal notes) and draft an AGENTS.md contract for it.
+
+- Propose zones: folders and notes that are mine alone, ones agents may edit in place, and ones that belong to machines. Agents must never edit my zone; they propose changes as a new note in the inbox instead.
+- Naming and frontmatter rules (title, type, created, updated, author, tags), and a template per kind of note.
+- One log line per meaningful action in that day's note, in a fixed format.
+- How writers avoid clobbering each other: one shared file lock, and a refusal to save over a file that changed since it was read.
+Show me the draft and a list of folders you were unsure about. Write nothing until I agree.</pre>
+
+  <div class="doc__foot">
+    <a href="/writing/">← writing</a>
+    <a href="/writing/with-claude">Building the lab with an agent in the loop →</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2730e92a" defer></script>
+<script src="/assets/site.js?v=ff57d015" defer></script>
+</body>
+</html>

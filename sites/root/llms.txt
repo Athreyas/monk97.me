@@ -46,8 +46,9 @@ private home lab he writes about.
   pushes to the Cloudflare edge; labels are an explicit allowlist; anything
   address-shaped is refused twice and fails closed. Written from public code.
 - Index of case studies: https://monk97.me/work/
-- [Home lab series](https://monk97.me/writing/) — seven posts, Docker on
-  macvlan to Proxmox, backups, CPU and GPU upgrades, local models.
+- [Writing](https://monk97.me/writing/) — a ten-post home lab series (Docker
+  to Proxmox, backups, CPU, GPU, local models), and Vault HQ, a local notes
+  front end.
 
 ## Contact
 
