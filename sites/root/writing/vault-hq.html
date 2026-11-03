@@ -48,9 +48,10 @@
     folder and shows what needs me. This is how the folder is organised, what
     HQ does on top of it, and the parts that took some care.
   </p>
-  <p>
-    <span class="ask">[screenshot: Home view]</span>
-  </p>
+  <figure class="cs__photo">
+    <img src="/writing/img/vault-hq-home.jpg" width="1600" height="1000" alt="Vault HQ's Home view in a dark terminal style: tabs for home, needs, days, tasks, inbox, notes and ask; an ask prompt with suggested questions; then panels for today's agent trail, tomorrow, items waiting on a decision, and project cards with progress bars.">
+    <figcaption>Home. Every screenshot here is from a demo vault of made-up notes (a garden, learning Rust, a book club), not the real one.</figcaption>
+  </figure>
 
   <h2 class="doc__h" id="why" data-toc>WHY NOT JUST OBSIDIAN</h2>
   <p>
@@ -160,11 +161,14 @@ AGENTS.md        <span class="c"># the contract every writer reads first</span><
     ask a question, or capture a thought into today's inbox note.
     <strong>⌘,</strong> opens Settings.
   </p>
-  <p>
-    <span class="ask">[screenshot: Needs you, one decision open]</span>
-    <span class="ask">[screenshot: Days, week view]</span>
-    <span class="ask">[screenshot: Ctrl K palette]</span>
-  </p>
+  <figure class="cs__photo">
+    <img src="/writing/img/vault-hq-days-week.jpg" width="1600" height="1000" loading="lazy" alt="The Days view in week mode: a calendar strip, sparklines for open tasks, tasks done and inbox size, and one column per day with Quick Wins, Work, Learning, Tomorrow and the agent log.">
+    <figcaption>Days, week view: my own lines and the agents' log, side by side.</figcaption>
+  </figure>
+  <figure class="cs__photo">
+    <img src="/writing/img/vault-hq-palette.jpg" width="1600" height="1000" loading="lazy" alt="The Ctrl K palette over the Home view, with 'garden' typed: two matching notes, then ask, search notes and capture actions for the same word.">
+    <figcaption>Ctrl K: one box to open a note, ask, search or capture.</figcaption>
+  </figure>
   <p>
     Needs you is the view I wanted most, and it has no model in it. What
     lands in the queue is decided by fixed rules in one file:
@@ -184,6 +188,10 @@ AGENTS.md        <span class="c"># the contract every writer reads first</span><
     is appended to a decision log in my zone with the outcome and a "why" in
     my own words. Snoozing is the one answer that skips the decision log.
   </p>
+  <figure class="cs__photo">
+    <img src="/writing/img/vault-hq-needs.jpg" width="1600" height="1000" loading="lazy" alt="The Needs you view: a queue of four items (overdue, proposal, due in 2 days, quiet project) and the overdue task open on the right with four outcomes, a box for the reasoning, and the evidence note.">
+    <figcaption>Needs you: the queue on the left, one decision open, with a box for the "why".</figcaption>
+  </figure>
   <p>
     Underneath, the server is Node 25 running TypeScript directly, with no
     build step. It listens on <code>localhost</code> only and keeps no
@@ -215,9 +223,10 @@ AGENTS.md        <span class="c"># the contract every writer reads first</span><
     chunks alone. Embeddings are cached by a hash of each chunk, so only new
     or changed text is embedded again.
   </p>
-  <p>
-    <span class="ask">[screenshot: Ask, an answer with its sources]</span>
-  </p>
+  <figure class="cs__photo">
+    <img src="/writing/img/vault-hq-ask.jpg" width="1600" height="1000" loading="lazy" alt="The Ask view: 'ollama ready, semantic search on'; the question 'How long should zone 2 run, and why?' answered in one sentence citing a note, and below it the chunks it read from, each with its note, heading and score.">
+    <figcaption>Ask: a one-line answer that cites its note, and every chunk it read, with scores.</figcaption>
+  </figure>
   <p>
     Settings lets me change the model server and the models, but it accepts
     only an address on this Mac or the home network: plain
@@ -250,6 +259,10 @@ ollama pull nomic-embed-text   <span class="c"># meaning, for search</span></pre
     longer matches. HQ then shows what changed and lets me choose. Unsaved
     text is kept as a draft per note in the meantime.
   </p>
+  <figure class="cs__photo">
+    <img src="/writing/img/vault-hq-editor-conflict.jpg" width="1600" height="1000" loading="lazy" alt="A note open for editing in HQ with a red notice: 'This note changed on disk while you were editing. Nothing was overwritten.' It shows the line an agent added, and three choices: use the disk version, copy mine to the clipboard, or overwrite with mine.">
+    <figcaption>A refused save: an agent added a line while the note was open, so HQ shows the change and asks.</figcaption>
+  </figure>
   <p class="cs__cap">THE SAVE, SIMPLIFIED (THE REAL ONE ALSO BUMPS <code>updated:</code>)</p>
   <pre class="cs__code">with open(path, "r+") as f:
     fcntl.flock(f, fcntl.LOCK_EX)          <span class="c"># the lock every vault writer takes</span>
@@ -307,9 +320,6 @@ ollama pull nomic-embed-text   <span class="c"># meaning, for search</span></pre
     browser and a note link opens in Obsidian. The window can only ever show
     HQ.
   </p>
-  <p>
-    <span class="ask">[screenshot: menu-bar icon and its menu]</span>
-  </p>
 
   <p class="cs__cap">PERSONAL CODE IN ONE FILE</p>
   <p>
@@ -360,12 +370,15 @@ ollama pull nomic-embed-text   <span class="c"># meaning, for search</span></pre
     <li><strong>The first question after a change</strong> embeds the new chunks. That takes about a minute for the whole vault and seconds after that.</li>
   </ul>
   <p>
-    Next is moving the server into Rust, so the app and the thing it shows
-    become one program.
+    More is coming. HQ shows one place today, but the same pattern can take
+    in other streams: a bookmark importer, for one, and a quick-capture bar
+    where I type something to remember and it lands as a clean note in the
+    right folder, following the same contract every other writer does.
   </p>
   <p>
-    The design began from <span class="ask">[credit: the second-brain video and its author]</span>.
-    The ideas were his; the design and code here are our own.
+    The whole thing started from the idea of building a second brain: one
+    place that people and tools both write to, and that gives back what
+    matters when it matters. Vault HQ is my version of the part you look at.
   </p>
 
   <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
