@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>A TV that took a minute and a half to turn on — Athreyas</title>
+<meta name="description" content="A 2017 Vizio smart TV that took up to a minute and a half to turn on. There is no custom firmware to flash, so the fix was one setting found through the TV's local API, plus two keys on the lab dashboard that switch its inputs.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+
+<link rel="canonical" href="https://monk97.me/writing/tv-quick-start">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css?v=ef78b26b">
+
+<script src="/assets/theme.js?v=390ff9fc"></script>
+</head>
+
+<body class="is-doc">
+
+<main class="doc cs">
+
+  <header class="rail">
+    <div class="rail__inner">
+      <div class="rail__path"><span class="sigil" aria-hidden="true">~</span><a class="rail__up" href="/">monk97.me</a><span class="rail__sep" aria-hidden="true">/</span><a class="rail__up" href="/writing/">writing</a><span class="rail__sep" aria-hidden="true">/</span><span class="rail__seg">tv-quick-start</span></div>
+      <button type="button" class="theme">theme=<span class="theme__val">auto</span></button>
+    </div>
+  </header>
+
+  <h1 class="doc__name">A TV that took a minute and a half to turn on.</h1>
+  <p class="doc__role">Part 10 · the screen itself</p>
+  <div class="cs__meta">
+    <span>2026-11-09</span>
+    <span>home lab series · part 10 of 10</span>
+  </div>
+
+  <p>
+    <a href="/writing/tv-dashboard">Part 9</a> put the lab's status on the
+    living-room TV. The TV itself was the slow part. It is a 2017 Vizio
+    M-Series (M50-E1) running Vizio's SmartCast software. Turning it on took
+    between one and one and a half minutes, and switching between the Apple TV
+    and the lab machine dragged. Once the Apple TV was up, everything was fine.
+    The TV had been factory-reset recently, so years of leftover apps were not
+    the cause.
+  </p>
+  <p>
+    I had seen videos of people wiping a smart TV and flashing a lighter
+    system onto it, and that was the first idea. It ended as one setting
+    changed through the TV's own API, plus two new keys on the dashboard.
+  </p>
+
+  <h2 class="doc__h" id="flash" data-toc>NO FIRMWARE TO FLASH</h2>
+  <p>
+    The flashing videos are mostly about LG's webOS, which has an active
+    rooting community, or about plugging a small computer into a spare HDMI
+    port. For Vizio's SmartCast I found nothing comparable: no custom
+    firmware, and no way in short of opening the case and probing the board.
+    Updates arrive only through Vizio's own signed mechanism. Forcing
+    something else onto the TV risks a dead TV, with nothing better to run
+    on it anyway.
+  </p>
+  <p>
+    It does not need a new system, though. The Apple TV and the lab machine
+    already do the "smart" part. The goal shifted to making the TV behave
+    like a screen: come on fast, go to the right input, and do nothing else
+    in the background.
+  </p>
+
+  <h2 class="doc__h" id="api" data-toc>THE TV HAS AN API</h2>
+  <p>
+    SmartCast TVs answer HTTPS on port 7345: the API that Vizio's phone app
+    uses. It has a self-signed certificate, hence <code>-k</code>. One
+    endpoint needs no login and reports the model and firmware. That is how
+    this turned out to be an M-Series, not the P-Series I had assumed:
+  </p>
+  <p class="cs__cap">FROM A LAPTOP ON THE LAN: WHAT IS THIS TV?</p>
+  <pre class="cs__code">dns-sd -B _viziocast._tcp local                 <span class="c"># find it (macOS); avahi-browse on Linux</span>
+curl -sk https://192.168.1.50:7345/state/device/deviceinfo \
+  | jq '.ITEMS[0].VALUE | {MODEL_NAME, SERIES: .SYSTEM_INFO.SERIES, VERSION: .SYSTEM_INFO.VERSION}'</pre>
+  <p>
+    Settings need a token. You get one by pairing, the same way the phone app
+    does: ask to pair, the TV shows a four-digit PIN, and you send the PIN
+    back.
+  </p>
+  <p class="cs__cap">PAIR ONCE: THE PIN APPEARS ON THE TV</p>
+  <pre class="cs__code">curl -sk -X PUT -H 'Content-Type: application/json' \
+  -d '{"DEVICE_ID":"lab-ctl-01","DEVICE_NAME":"Lab Controller"}' \
+  https://192.168.1.50:7345/pairing/start          <span class="c"># returns PAIRING_REQ_TOKEN</span>
+
+curl -sk --max-time 90 -X PUT -H 'Content-Type: application/json' \
+  -d '{"DEVICE_ID":"lab-ctl-01","CHALLENGE_TYPE":1,"RESPONSE_VALUE":"&lt;PIN&gt;","PAIRING_REQ_TOKEN":&lt;n&gt;}' \
+  https://192.168.1.50:7345/pairing/pair           <span class="c"># returns AUTH_TOKEN; keep it out of any repo</span></pre>
+  <p>
+    The <code>--max-time 90</code> is there because the first attempt used
+    20 seconds. The TV accepted the PIN after curl had given up, so the token
+    never arrived. A retry with the same PIN was rejected, because the PIN
+    was already used, and the pairing had to start over with a new one.
+  </p>
+
+  <h2 class="doc__h" id="eco" data-toc>WHERE THE MINUTE WENT</h2>
+  <p>
+    The whole settings menu is a tree under
+    <code>/menu_native/dynamic/tv_settings</code>. A small script that walks
+    it with GET requests only printed every setting. Changing nothing was
+    deliberate, because I wanted the full picture first. One line explained
+    the wait:
+  </p>
+  <pre class="cs__code">/system/power_mode            Power Mode            Eco Mode
+/timers/auto_power_off_timer  Auto Power Off        10 minutes
+/system/reset_and_admin/smart_interactivity  Viewing Data   On
+/system/reset_and_admin/advertising/ad_replacement  Ad Replacement  On</pre>
+  <p>
+    In Eco Mode, "off" really is off, so every power-on is a full boot of the
+    TV's Linux system and its app stack. Auto Power Off makes it worse: ten
+    minutes without a signal, say after the Apple TV goes to sleep, and the
+    TV shuts down completely again.
+  </p>
+  <p>
+    The probing caught the TV in a bad state too. At one point its API
+    accepted connections, completed the TLS handshake and then never
+    answered, for minutes. A soft power cycle (System → Reset &amp; Admin)
+    cleared it. After that restart, the API took about half a minute after
+    the Vizio logo to come up. Two other settings also stood out: Viewing
+    Data, which identifies what is on screen and reports it back, and Ad
+    Replacement. That is background work on a 2017 chip, for features nobody
+    in the house wanted.
+  </p>
+
+  <h2 class="doc__h" id="fix" data-toc>THE FIX</h2>
+  <p>
+    Every setting carries a <code>HASHVAL</code>. To change one, you read it
+    and send the hash back with the new value; the allowed values are under
+    the <code>static</code> half of the same tree:
+  </p>
+  <p class="cs__cap">READ THE OPTIONS, THEN CHANGE ONE</p>
+  <pre class="cs__code">TV=https://192.168.1.50:7345/menu_native
+curl -sk -H "AUTH: $TOKEN" $TV/static/tv_settings/system/power_mode | jq -c '.ITEMS[0].ELEMENTS'
+<span class="c"># ["Eco Mode","Quick Start"]</span>
+
+HASH=$(curl -sk -H "AUTH: $TOKEN" $TV/dynamic/tv_settings/system/power_mode | jq '.ITEMS[0].HASHVAL')
+curl -sk -X PUT -H "AUTH: $TOKEN" -H 'Content-Type: application/json' \
+  -d "{\"REQUEST\":\"MODIFY\",\"HASHVAL\":$HASH,\"VALUE\":\"Quick Start\"}" \
+  $TV/dynamic/tv_settings/system/power_mode       <span class="c"># {"STATUS":{"RESULT":"SUCCESS"}}</span></pre>
+  <p>
+    Four changes, each read back afterwards:
+  </p>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>SETTING</th><th>BEFORE</th><th>AFTER</th></tr></thead>
+      <tbody>
+        <tr class="is-pick"><td>Power Mode</td><td>Eco Mode</td><td>Quick Start</td></tr>
+        <tr><td>Viewing Data</td><td>On</td><td>Off</td></tr>
+        <tr><td>Ad Replacement</td><td>On</td><td>Off</td></tr>
+        <tr><td>Limited Ad Tracking</td><td>Off</td><td>On</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Auto Power Off stayed at ten minutes. Under Quick Start the TV drops into
+    a warm standby instead of shutting down, so waking from it is fast. The
+    trade is a little more power drawn while the TV looks off.
+  </p>
+  <div class="cs__table">
+    <table>
+      <thead><tr><th>MEASURED</th><th>BEFORE</th><th>AFTER</th></tr></thead>
+      <tbody>
+        <tr class="is-pick"><td>remote power button to picture</td><td>60–90 s</td><td>under 5 s</td></tr>
+        <tr><td>API answering after power-on</td><td>about 30 s after the logo, or hung</td><td>under a second</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="doc__h" id="keys" data-toc>TWO KEYS ON THE DASHBOARD</h2>
+  <p>
+    With a token in hand, switching inputs is the same read-then-write on
+    <code>devices/current_input</code>. towerview, the dashboard from part 9,
+    now has two keys: <code>a</code> puts the TV on the Apple TV and
+    <code>p</code> on the lab machine. They work from the keyboard at the
+    machine or from a laptop over SSH. The footer shows which input the TV
+    is on, and for a few seconds after a key press, whether it worked:
+  </p>
+  <pre class="cs__code">  s root shell     r redraw     a tv: apple tv     p tv: arttower     ctrl+alt+f2 root login       tv on apple tv</pre>
+  <p>
+    Three details. The call runs on its own thread, so a slow TV cannot
+    freeze the screen. The TV's certificate is self-signed, which the Rust
+    HTTP client refuses without a custom verifier, so towerview calls
+    <code>curl -k</code>. And the token goes to curl on standard input
+    (<code>-H @-</code>) rather than on the command line, where any user on
+    the host could read it in <code>ps</code>. The token itself lives in a
+    root-owned file that only the dashboard's user can read.
+  </p>
+
+  <h2 class="doc__h" id="next" data-toc>WHAT IS LEFT</h2>
+  <p>
+    A fixed address for the TV on the router, so the keys keep working if
+    it ever gets a new one. Beyond that, the TV is now what it was always
+    meant to be here: a screen that comes on when asked.
+  </p>
+
+  <h2 class="doc__h" id="ask" data-toc>ASK AN AGENT</h2>
+  <p class="cs__cap">PROMPT: MY SMART TV IS SLOW TO TURN ON</p>
+  <pre class="cs__prompt">My smart TV takes over a minute to turn on and is slow to switch inputs. It is on my home network. Find out why with read-only checks first, and change nothing until I agree.
+
+- Find the TV on the network (mDNS, the router's client list) and identify the exact model and firmware.
+- Check whether it has a local API (Vizio SmartCast on 7345, LG, Samsung, Roku and Android TV all have one) and what it needs to pair.
+- Read the power mode, auto power-off, input-on-power-up, CEC and viewing-data or ad settings.
+- Tell me honestly whether custom firmware exists for this model, and what flashing would risk.
+Then propose the smallest changes, with how to undo each one.</pre>
+
+  <h2 class="doc__h" id="series">THE SERIES</h2>
+  <ol class="series">
+    <li><a href="/writing/raspberry-pi">It started with a Raspberry Pi</a></li>
+    <li><a href="/writing/docker-macvlan">One Ubuntu box and a macvlan network</a></li>
+    <li><a href="/writing/proxmox">Moving to Proxmox, one service per container</a></li>
+    <li><a href="/writing/cpu-upgrade">Four cores to sixteen</a></li>
+    <li><a href="/writing/backups">Sixteen days of backups that weren&#x27;t</a></li>
+    <li><a href="/writing/gpu">Choosing a 70-watt GPU</a></li>
+    <li><a href="/writing/ollama">Twelve cores and most of a GPU</a></li>
+    <li><a href="/writing/with-claude">Building the lab with an agent in the loop</a></li>
+    <li><a href="/writing/inference">One GPU, three containers, one owner</a></li>
+    <li><a href="/writing/tv-dashboard">From a browser kiosk to a 3 MB TUI</a></li>
+    <li><span aria-current="page">A TV that took a minute and a half to turn on</span></li>
+  </ol>
+
+  <div class="doc__foot">
+    <a href="/writing/tv-dashboard">← From a browser kiosk to a 3 MB TUI</a>
+    <a href="/writing/">writing →</a>
+    <span class="foot__keys">press <kbd>/</kbd> for a prompt</span>
+  </div>
+
+</main>
+
+<div class="console" aria-hidden="true">
+  <div class="console__inner">
+    <div class="console__out" role="log" aria-live="polite"></div>
+    <div class="console__line">
+      <span class="console__sigil" aria-hidden="true">$</span>
+      <input class="console__in" type="text" spellcheck="false" autocomplete="off"
+             autocapitalize="off" aria-label="Command prompt. Type help for commands, escape to close.">
+      <button type="button" class="console__esc" data-console-close>esc</button>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/toc.js?v=2730e92a" defer></script>
+<script src="/assets/site.js?v=ff57d015" defer></script>
+</body>
+</html>
